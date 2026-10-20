@@ -13,7 +13,7 @@ const execFileP = promisify(execFile);
 
 const PORT = Number(process.env.PORT) || 3000;
 // "system" sends jobs to the OS printer, "dry" only saves the PDF (for testing without a printer)
-const PRINT_MODE = (process.env.PRINT_MODE || 'system').toLowerCase();
+const PRINT_MODE = process.argv.includes('--dry') ? 'dry' : (process.env.PRINT_MODE || 'system').toLowerCase();
 const DEFAULT_PRINTER = process.env.PRINTER_NAME || '';
 // CUPS media name used on macOS / Linux. 4x6in = 288x432pt
 const PRINT_MEDIA = process.env.PRINT_MEDIA || 'w288h432';

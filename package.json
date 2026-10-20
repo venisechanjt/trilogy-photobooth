@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "dev": "PRINT_MODE=dry node server.js"
+    "dev": "node server.js --dry"
   },
   "engines": {
     "node": ">=18"
