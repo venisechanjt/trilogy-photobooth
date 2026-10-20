@@ -27,7 +27,11 @@ Run the browser full screen so guests can't leave the app:
 open -a "Google Chrome" --args --kiosk http://localhost:3000
 ```
 
-Press ⚙️ (top right) to set the event name printed on the frames, the printer, the countdown length, the maximum prints, and whether photos are mirrored.
+Press ⚙️ (top right) to set the event name printed on the frames, the printer, the maximum prints, and whether photos are mirrored.
+
+On the camera screen, guests choose:
+* **Shooting mode:** **Auto** takes all 8 photos in a row. **Manual** takes one photo each time the guest taps *Take photo* (the space bar or a presentation clicker also works).
+* **Timer:** 0s, 3s or 5s before each photo.
 
 ## Printing
 

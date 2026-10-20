@@ -4,11 +4,14 @@
   const $ = (sel) => document.querySelector(sel);
 
   // ---------- settings (stored on this device for the operator) ----------
-  const DEFAULT_SETTINGS = { eventName: 'Photobooth', printer: '', countdown: 3, maxCopies: 10, mirror: true, cameraId: '' };
+  const DEFAULT_SETTINGS = { eventName: 'trilogy', printer: '', timer: 3, mode: 'auto', maxCopies: 10, mirror: true, cameraId: '' };
+  const TIMERS = [0, 3, 5];
   let settings = { ...DEFAULT_SETTINGS };
   try {
     settings = { ...settings, ...JSON.parse(localStorage.getItem('photobooth-settings') || '{}') };
   } catch {}
+  if (!TIMERS.includes(settings.timer)) settings.timer = DEFAULT_SETTINGS.timer;
+  if (!['auto', 'manual'].includes(settings.mode)) settings.mode = DEFAULT_SETTINGS.mode;
   const saveSettings = () => {
     try {
       localStorage.setItem('photobooth-settings', JSON.stringify(settings));
@@ -76,7 +79,7 @@
       card.className = 'layout-card';
       const canvas = document.createElement('canvas');
       const geoId = layout.id === '4r' ? '4r-quad' : layout.geometries[0];
-      await renderFrame(canvas, geoId, layout.id === '4r' ? 'pink' : 'classic', [], { ...frameOpts(), scale: 0.18 });
+      await renderFrame(canvas, geoId, layout.id === '4r' ? 'trilogy-forest' : 'trilogy-cream', [], { ...frameOpts(), scale: 0.18 });
       card.innerHTML = `<div class="thumb"></div><h2>${layout.name}</h2><p>${layout.blurb}</p>`;
       card.querySelector('.thumb').appendChild(canvas);
       card.addEventListener('click', () => chooseLayout(layout.id));
@@ -122,7 +125,7 @@
       const b = document.createElement('button');
       b.className = 'geo-chip' + (id === state.geometry ? ' active' : '');
       const c = document.createElement('canvas');
-      renderFrame(c, id, 'classic', [], { scale: 0.05, caption: false });
+      renderFrame(c, id, 'trilogy-cream', [], { scale: 0.05, caption: false });
       b.appendChild(c);
       b.insertAdjacentHTML('beforeend', `<span>${g.name}<small>${g.slots.length} photo${g.slots.length > 1 ? 's' : ''}</small></span>`);
       b.addEventListener('click', () => {
@@ -242,20 +245,47 @@
     const count = state.shots.filter(Boolean).length;
     $('#shot-count').textContent = count;
     const done = count === TOTAL_SHOTS;
+    const manual = settings.mode === 'manual';
     $('#camera-next').disabled = !done || shooting;
     $('#start-shoot').hidden = done || shooting;
     $('#retake-all').hidden = !done || shooting;
-    $('#start-shoot').textContent = count > 0 ? 'Continue ▶' : 'Start ▶';
+    if (manual) $('#start-shoot').textContent = '📸 Take photo';
+    else $('#start-shoot').textContent = count > 0 ? 'Continue ▶' : 'Start ▶';
     $('#camera-hint').textContent = done
       ? 'All 8 done! Tap any photo to retake it, or carry on.'
-      : 'Press start and strike a pose! Tap any photo afterwards to retake it.';
+      : manual
+        ? 'Tap the button (or press the space bar) for each photo. Tap a photo afterwards to retake it.'
+        : `The booth takes all 8 photos in a row${settings.timer ? `, ${settings.timer}s apart` : ''}. Tap a photo afterwards to retake it.`;
+    document.querySelectorAll('#mode-select button').forEach((b) => {
+      b.classList.toggle('active', b.dataset.mode === settings.mode);
+      b.disabled = shooting;
+    });
+    document.querySelectorAll('#timer-select button').forEach((b) => {
+      b.classList.toggle('active', Number(b.dataset.timer) === settings.timer);
+      b.disabled = shooting;
+    });
   }
+
+  document.querySelectorAll('#mode-select button').forEach((b) =>
+    b.addEventListener('click', () => {
+      settings.mode = b.dataset.mode;
+      saveSettings();
+      renderShots();
+    })
+  );
+  document.querySelectorAll('#timer-select button').forEach((b) =>
+    b.addEventListener('click', () => {
+      settings.timer = Number(b.dataset.timer);
+      saveSettings();
+      renderShots();
+    })
+  );
 
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   async function countdown(token) {
     const el = $('#countdown');
-    for (let n = settings.countdown; n > 0; n--) {
+    for (let n = settings.timer; n > 0; n--) {
       if (token !== shootToken) return false;
       el.textContent = n;
       el.classList.remove('pop');
@@ -290,6 +320,7 @@
   }
 
   async function shootSequence(indexes) {
+    if (shooting) return;
     if (!stream || !video.videoWidth) return showCamError('Camera is not ready yet.');
     const token = ++shootToken;
     shooting = true;
@@ -298,7 +329,8 @@
       if (!(await countdown(token))) break;
       state.shots[i] = capture();
       renderShots();
-      await wait(600);
+      // with no timer, still leave a moment to change poses between automatic shots
+      await wait(settings.timer === 0 && indexes.length > 1 ? 1500 : 600);
     }
     if (token === shootToken) shooting = false;
     renderShots();
@@ -317,12 +349,20 @@
 
   $('#start-shoot').addEventListener('click', () => {
     const missing = state.shots.map((s, i) => (s ? -1 : i)).filter((i) => i >= 0);
-    shootSequence(missing);
+    shootSequence(settings.mode === 'manual' ? missing.slice(0, 1) : missing);
+  });
+  // space bar (or a presentation clicker) works as the shutter button
+  document.addEventListener('keydown', (e) => {
+    if (current !== 'camera' || !['Space', 'PageDown', 'ArrowRight'].includes(e.code)) return;
+    if (e.target.closest('input, select, textarea')) return;
+    e.preventDefault();
+    if (!$('#start-shoot').hidden) $('#start-shoot').click();
   });
   $('#retake-all').addEventListener('click', () => {
     state.shots = Array(TOTAL_SHOTS).fill(null);
     state.selection = [];
-    shootSequence([...Array(TOTAL_SHOTS).keys()]);
+    if (settings.mode === 'manual') renderShots();
+    else shootSequence([...Array(TOTAL_SHOTS).keys()]);
   });
   $('#camera-back').addEventListener('click', () => go(state.layout === '4r' ? 'frame' : 'layout'));
   $('#camera-next').addEventListener('click', () => go('select'));
@@ -569,7 +609,6 @@
   // ---------- settings dialog ----------
   async function openSettings() {
     $('#set-event').value = settings.eventName;
-    $('#set-countdown').value = settings.countdown;
     $('#set-max').value = settings.maxCopies;
     $('#set-mirror').checked = settings.mirror;
     const sel = $('#set-printer');
@@ -591,7 +630,6 @@
   $('#settings-save').addEventListener('click', () => {
     settings.eventName = $('#set-event').value.trim() || DEFAULT_SETTINGS.eventName;
     settings.printer = $('#set-printer').value;
-    settings.countdown = Math.max(1, Math.min(10, parseInt($('#set-countdown').value, 10) || 3));
     settings.maxCopies = Math.max(1, Math.min(50, parseInt($('#set-max').value, 10) || 10));
     settings.mirror = $('#set-mirror').checked;
     saveSettings();
@@ -612,7 +650,7 @@
       if (res.ok) server = await res.json();
     } catch {}
     await document.fonts.ready.catch(() => {});
-    await document.fonts.load('700 40px Fredoka').catch(() => {});
+    await Promise.all(['800 40px Archivo', '500 20px "Roboto Condensed"'].map((f) => document.fonts.load(f))).catch(() => {});
     buildLayoutCards();
   }
   boot();

@@ -6,12 +6,11 @@
   <title>Photobooth</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">📸 <span id="brand-name">Photobooth</span></div>
+    <div class="brand"><span id="brand-name">trilogy</span></div>
     <ol class="steps" id="steps">
       <li data-step="layout">Layout</li>
       <li data-step="frame" class="only-4r">Frame</li>
@@ -66,6 +65,21 @@
             <span>Camera</span>
             <select id="camera-select"></select>
           </label>
+          <div class="field">
+            <span>Shooting mode</span>
+            <div class="segmented" id="mode-select">
+              <button data-mode="auto">Auto</button>
+              <button data-mode="manual">Manual</button>
+            </div>
+          </div>
+          <div class="field">
+            <span>Timer</span>
+            <div class="segmented" id="timer-select">
+              <button data-timer="0">0s</button>
+              <button data-timer="3">3s</button>
+              <button data-timer="5">5s</button>
+            </div>
+          </div>
           <p class="shot-counter"><b id="shot-count">0</b> / 8 photos</p>
           <div class="shots" id="shots"></div>
           <p class="hint" id="camera-hint">Press start and strike a pose! Tap any photo afterwards to retake it.</p>
@@ -156,7 +170,6 @@
       <h2>Booth settings</h2>
       <label class="field"><span>Event name (printed on the frame)</span><input id="set-event" maxlength="40" /></label>
       <label class="field"><span>Printer</span><select id="set-printer"><option value="">System default</option></select></label>
-      <label class="field"><span>Countdown (seconds)</span><input id="set-countdown" type="number" min="1" max="10" /></label>
       <label class="field"><span>Max prints per session</span><input id="set-max" type="number" min="1" max="50" /></label>
       <label class="check"><input type="checkbox" id="set-mirror" /> Mirror photos (selfie view)</label>
       <p class="hint" id="server-info"></p>

@@ -107,6 +107,32 @@ function star(ctx, x, y, r) {
  */
 const THEMES = [
   {
+    id: 'trilogy-cream',
+    name: 'Trilogy Cream',
+    swatch: '#fffaf3',
+    text: '#273f2d',
+    accent: '#b5885e',
+    radius: 4,
+    border: { color: '#273f2d', width: 3 },
+    background(ctx, W, H) {
+      ctx.fillStyle = '#fffaf3';
+      ctx.fillRect(0, 0, W, H);
+    },
+  },
+  {
+    id: 'trilogy-forest',
+    name: 'Trilogy Forest',
+    swatch: '#273f2d',
+    text: '#fffaf3',
+    accent: '#c8b89f',
+    radius: 4,
+    border: { color: '#c8b89f', width: 3 },
+    background(ctx, W, H) {
+      ctx.fillStyle = '#273f2d';
+      ctx.fillRect(0, 0, W, H);
+    },
+  },
+  {
     id: 'classic',
     name: 'Classic White',
     swatch: '#ffffff',
@@ -292,7 +318,7 @@ async function renderFrame(canvas, geometryId, themeId, photos = [], opts = {}) 
       ctx.fillStyle = '#d9d9de';
       ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
       ctx.fillStyle = '#9a9aa2';
-      ctx.font = `600 ${Math.min(slot.w, slot.h) * 0.32}px Fredoka, system-ui, sans-serif`;
+      ctx.font = `600 ${Math.min(slot.w, slot.h) * 0.32}px 'Roboto Condensed', system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(i + 1), slot.x + slot.w / 2, slot.y + slot.h / 2);
@@ -315,14 +341,14 @@ async function renderFrame(canvas, geometryId, themeId, photos = [], opts = {}) 
     ctx.textBaseline = 'middle';
     ctx.fillStyle = theme.text;
     let size = W < 800 ? 54 : 78;
-    ctx.font = `700 ${size}px Fredoka, system-ui, sans-serif`;
+    ctx.font = `800 ${size}px Archivo, 'Arial Black', system-ui, sans-serif`;
     while (ctx.measureText(title).width > W - 80 && size > 20) {
       size -= 2;
-      ctx.font = `700 ${size}px Fredoka, system-ui, sans-serif`;
+      ctx.font = `800 ${size}px Archivo, 'Arial Black', system-ui, sans-serif`;
     }
     ctx.fillText(title, W / 2, cy - 22);
     ctx.fillStyle = theme.accent;
-    ctx.font = `500 ${W < 800 ? 28 : 36}px Fredoka, system-ui, sans-serif`;
+    ctx.font = `500 ${W < 800 ? 28 : 36}px 'Roboto Condensed', system-ui, sans-serif`;
     ctx.fillText(opts.date || new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }), W / 2, cy + 40);
   }
 
