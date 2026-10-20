@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Photobooth</title>
+  <title>trilogy photobooth</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Stardos+Stencil:wght@700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -22,11 +23,46 @@
   </header>
 
   <main>
+    <!-- Home + booth wall -->
+    <section class="screen active" id="screen-home">
+      <div class="hero">
+        <img src="logo.png" alt="Three friends, drawn in line art" class="hero-logo" id="hero-logo" />
+        <p class="script">welcome to the</p>
+        <h1 class="hero-title"><span id="hero-name">trilogy</span> photobooth</h1>
+        <p class="sub">Strike a pose, pick your favourites, and take home a print.</p>
+        <div class="hero-actions">
+          <button class="btn primary big" id="start-btn">Start ▶</button>
+          <a class="btn ghost" href="#wall" id="wall-link">See the booth wall ↓</a>
+        </div>
+      </div>
+      <section class="wall" id="wall" aria-labelledby="wall-title">
+        <div class="wall-rail" aria-hidden="true">
+          <span class="clip big" style="left: 7%"></span>
+          <span class="clip big" style="left: 50%"></span>
+          <span class="clip big" style="left: 93%"></span>
+        </div>
+        <div class="cloth">
+        <div class="wall-head">
+          <h2 id="wall-title">The booth wall</h2>
+          <p class="hint" id="wall-count"></p>
+        </div>
+        <div class="wall-grid" id="wall-grid"></div>
+        <div class="wall-empty" id="wall-empty" hidden>
+          <p class="script">be the first</p>
+          <p class="sub">No photos on the wall yet. Yours could be the first!</p>
+        </div>
+        </div>
+      </section>
+    </section>
+
     <!-- 1. Layout -->
-    <section class="screen active" id="screen-layout">
+    <section class="screen" id="screen-layout">
       <h1>Choose your print</h1>
       <p class="sub">You'll take 8 photos, then pick your favourites.</p>
       <div class="layout-cards" id="layout-cards"></div>
+      <div class="actions">
+        <button class="btn ghost" data-go="home">← Home</button>
+      </div>
     </section>
 
     <!-- 2. Frame (4R only) -->
@@ -138,6 +174,7 @@
             <span>Email me a digital copy <em>(optional)</em></span>
             <input type="email" id="email" placeholder="you@example.com" autocomplete="email" inputmode="email" />
           </label>
+          <label class="check"><input type="checkbox" id="wall-consent" checked /> Pin my photos on the booth wall</label>
           <button class="btn primary big" id="print-btn">🖨️ Print</button>
           <div class="secondary-actions">
             <button class="btn ghost small" id="email-only-btn">✉️ Email only, no print</button>
@@ -176,6 +213,13 @@
         <button class="btn primary" value="save" id="settings-save">Save</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Booth wall photo viewer -->
+  <dialog id="lightbox" class="lightbox">
+    <img id="lightbox-img" alt="Photo from the booth wall" />
+    <p class="hint" id="lightbox-date"></p>
+    <form method="dialog"><button class="btn ghost small">Close</button></form>
   </dialog>
 
   <!-- Used only for the browser-print fallback -->

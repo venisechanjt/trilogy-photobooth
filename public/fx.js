@@ -1,6 +1,6 @@
 /*
  * Background animation + small interactive touches.
- *   - floating polaroids, coffee beans, sparkles and hearts drift behind the page and dodge the pointer
+ *   - polaroids, coffee beans, sparkles and hearts wander around behind the page and dodge the pointer
  *   - tapping anywhere sends out a little burst of sparkles
  *   - confetti on the "done" screen, tilting layout cards, bouncing logo
  */
@@ -96,24 +96,26 @@
 
   // ---------- floating background items ----------
   const floaters = [];
-  function makeFloater(atBottom) {
+  // each item wanders: it keeps a heading that slowly turns, so paths curve around the screen
+  function makeFloater() {
     return {
       x: rand(0, W),
-      y: atBottom ? H + rand(20, 120) : rand(0, H),
+      y: rand(0, H),
       size: rand(8, 22),
       shape: pick(SHAPES),
       color: pick(COLORS),
-      alpha: rand(0.18, 0.4),
+      alpha: rand(0.2, 0.42),
       rot: rand(0, Math.PI * 2),
-      vr: rand(-0.006, 0.006),
-      baseVy: -rand(0.15, 0.45),
+      vr: rand(-0.01, 0.01),
+      heading: rand(0, Math.PI * 2),
+      turn: rand(-0.01, 0.01),
+      speed: rand(0.35, 1.1),
       vx: 0,
       vy: 0,
-      phase: rand(0, Math.PI * 2),
     };
   }
   const count = Math.round(Math.min(40, Math.max(16, (W * H) / 40000)));
-  for (let i = 0; i < count; i++) floaters.push(makeFloater(false));
+  for (let i = 0; i < count; i++) floaters.push(makeFloater());
 
   const pointer = { x: -9999, y: -9999 };
   window.addEventListener('pointermove', (e) => {
@@ -197,11 +199,20 @@
         }
         p.vx *= 0.94;
         p.vy *= 0.94;
-        p.vr = p.vr * 0.99 + (p.vr > 0 ? 0.00002 : -0.00002);
-        p.x += p.vx + Math.sin(t * 0.01 + p.phase) * 0.25;
-        p.y += p.vy + p.baseVy;
+        // gently change how sharply each item turns, so it meanders instead of circling
+        p.turn += rand(-0.0015, 0.0015);
+        p.turn = Math.max(-0.02, Math.min(0.02, p.turn));
+        p.heading += p.turn;
+        p.x += Math.cos(p.heading) * p.speed + p.vx;
+        p.y += Math.sin(p.heading) * p.speed + p.vy;
+        p.vr = Math.max(-0.03, Math.min(0.03, p.vr));
         p.rot += p.vr;
-        if (p.y < -60 || p.x < -80 || p.x > W + 80) floaters[i] = makeFloater(true);
+        // wrap around the edges
+        const m = 40;
+        if (p.x < -m) p.x = W + m;
+        else if (p.x > W + m) p.x = -m;
+        if (p.y < -m) p.y = H + m;
+        else if (p.y > H + m) p.y = -m;
       }
       drawShape(bctx, p);
     }

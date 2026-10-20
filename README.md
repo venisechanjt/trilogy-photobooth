@@ -46,6 +46,12 @@ The server turns every print into a **4×6" (4R) PDF** and sends it to the lapto
 * Load 4×6" paper and set it as the printer's default paper size. On macOS/Linux, if the printer rejects `w288h432`, set `PRINT_MEDIA` in `.env` to the name your printer uses (run `lpoptions -p <printer> -l` to list them).
 * If the server can't print, the page offers the browser print dialog instead (one page per copy).
 
+## Home page and booth wall
+
+The booth opens on a home page with a **Start** button and the **booth wall**: every finished photo whose guest kept *Pin my photos on the booth wall* ticked on the print screen. New photos pop onto the wall within about 15 seconds.
+
+Wall photos are saved in `output/wall/`. To take a photo off the wall, delete its two files there (`<id>.jpg` and `<id>-thumb.jpg`). Back up the folder after the event if you want to keep them.
+
 ## Email (digital copy)
 
 Fill in `SMTP_*` in `.env`. With Gmail, create an [App Password](https://myaccount.google.com/apppasswords) and use it as `SMTP_PASS`. The guest receives the framed photo plus their selected original shots.

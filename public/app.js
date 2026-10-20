@@ -40,7 +40,7 @@
   const selectedPhotos = () => state.selection.map((i) => state.shots[i]);
 
   // ---------- navigation ----------
-  let current = 'layout';
+  let current = 'home';
   function go(screen) {
     if (screen !== 'camera') stopShootLoop();
     if (screen !== 'done') window.FX?.clear();
@@ -53,6 +53,14 @@
       li.classList.toggle('passed', idx < order.indexOf(screen));
     });
     document.body.classList.toggle('is-4r', state.layout === '4r');
+    document.body.classList.toggle('on-home', screen === 'home');
+    clearInterval(wallTimer);
+    if (screen === 'home') {
+      resetSession();
+      loadWall();
+      wallTimer = setInterval(loadWall, 15000);
+    }
+    window.scrollTo(0, 0);
 
     if (screen === 'camera') enterCamera();
     else stopCamera();
@@ -70,6 +78,8 @@
     state.shots = Array(TOTAL_SHOTS).fill(null);
     state.selection = [];
     state.copies = 1;
+    state.wallPosted = false;
+    $('#wall-consent').checked = true;
     $('#email').value = '';
     $('#print-status').textContent = '';
     clearInterval(restartTimer);
@@ -500,7 +510,13 @@
           .then((r) => ({ type: 'print', ok: true, r }))
           .catch((e) => ({ type: 'print', ok: false, e }))
       );
-    } else {
+    }
+    if ($('#wall-consent').checked) {
+      if (!state.wallPosted) {
+        state.wallPosted = true;
+        postJSON('/api/wall', { image: frameData, thumb: scaledJpeg(finalFrame, 700) }).catch(() => (state.wallPosted = false));
+      }
+    } else if (!print) {
       postJSON('/api/save', { image: frameData }).catch(() => {});
     }
     if (email) {
@@ -533,6 +549,7 @@
     if (printRes) lines.push(`${state.copies} print${state.copies > 1 ? 's' : ''} ${printRes.r.dryRun ? 'saved (test mode, printer not used)' : 'on the way'}.`);
     if (emailRes?.ok) lines.push(`A digital copy was sent to ${email}.`);
     if (emailRes && !emailRes.ok) lines.push(`We couldn't send the email (${emailRes.e.message}). Please ask the booth staff.`);
+    if (state.wallPosted) lines.push('Your photos are pinned on the booth wall.');
     showDone(printRes ? 'Your photos are printing!' : 'Check your inbox!', lines.join(' '));
   }
 
@@ -584,10 +601,71 @@
     restartTimer = setInterval(() => {
       left--;
       tick();
-      if (left <= 0) go('layout');
+      if (left <= 0) go('home');
     }, 1000);
   }
-  $('#restart').addEventListener('click', () => go('layout'));
+  $('#restart').addEventListener('click', () => go('home'));
+
+  // ---------- home + booth wall ----------
+  let wallTimer = null;
+  let wallIds = null;
+  $('#start-btn').addEventListener('click', () => go('layout'));
+  $('#wall-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    $('#wall').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // a stable little tilt per photo, so the wall looks hand-pinned
+  function tiltFor(id) {
+    let h = 0;
+    for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0;
+    return ((Math.abs(h) % 90) / 10 - 4.5).toFixed(1);
+  }
+
+  async function loadWall() {
+    const grid = $('#wall-grid');
+    if (!server) {
+      $('#wall-count').textContent = 'The booth wall needs the photobooth server running (npm start).';
+      return;
+    }
+    let photos;
+    try {
+      ({ photos } = await (await fetch('/api/wall')).json());
+    } catch {
+      return;
+    }
+    const firstLoad = wallIds === null;
+    const known = wallIds || new Set();
+    if (!firstLoad && photos.length === known.size && photos.every((p) => known.has(p.id))) return;
+
+    grid.innerHTML = '';
+    photos.forEach((p, i) => {
+      const card = document.createElement('button');
+      card.className = 'wall-card' + (!firstLoad && !known.has(p.id) ? ' fresh' : '');
+      card.style.setProperty('--tilt', `${tiltFor(p.id)}deg`);
+      card.style.setProperty('--delay', `${Math.min(i, 20) * 40}ms`);
+      card.innerHTML = `<span class="clip" aria-hidden="true"></span><img loading="lazy" alt="Photo strip from the booth" src="${p.thumb}">`;
+      card.addEventListener('click', () => openLightbox(p));
+      grid.appendChild(card);
+    });
+    wallIds = new Set(photos.map((p) => p.id));
+    $('#wall-empty').hidden = photos.length > 0;
+    $('#wall-count').textContent = photos.length ? `${photos.length} photo${photos.length > 1 ? 's' : ''} and counting` : '';
+  }
+
+  function openLightbox(p) {
+    $('#lightbox-img').src = p.url;
+    $('#lightbox-date').textContent = new Date(p.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    $('#lightbox').showModal();
+  }
+  $('#lightbox').addEventListener('click', (e) => {
+    if (e.target.id === 'lightbox') $('#lightbox').close();
+  });
+  $('#hero-logo').addEventListener('click', (e) => {
+    e.target.classList.remove('bounce');
+    void e.target.offsetWidth;
+    e.target.classList.add('bounce');
+  });
 
   // ---------- toast ----------
   let toastTimer;
@@ -637,6 +715,7 @@
 
   function applyBranding() {
     $('#brand-name').textContent = settings.eventName;
+    $('#hero-name').textContent = settings.eventName;
     document.title = settings.eventName;
   }
 
@@ -650,6 +729,7 @@
     await document.fonts.ready.catch(() => {});
     await Promise.all(['800 40px Archivo', '500 20px "Roboto Condensed"', 'italic 700 40px "Cormorant Garamond"', 'italic 600 40px "Cormorant Garamond"'].map((f) => document.fonts.load(f))).catch(() => {});
     buildLayoutCards();
+    go('home');
   }
   boot();
 })();

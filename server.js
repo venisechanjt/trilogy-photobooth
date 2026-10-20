@@ -20,11 +20,16 @@ const PRINT_MEDIA = process.env.PRINT_MEDIA || 'w288h432';
 const MAX_COPIES = Number(process.env.MAX_COPIES) || 10;
 const OUTPUT_DIR = path.resolve(process.env.OUTPUT_DIR || path.join(__dirname, 'output'));
 
-fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+// Photos guests chose to share on the booth wall (delete files here to remove them from the wall)
+const WALL_DIR = path.join(OUTPUT_DIR, 'wall');
+const WALL_LIMIT = Number(process.env.WALL_LIMIT) || 300;
+
+fs.mkdirSync(WALL_DIR, { recursive: true });
 
 const app = express();
 app.use(express.json({ limit: '60mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/wall', express.static(WALL_DIR, { maxAge: '1d' }));
 
 // ---------- helpers ----------
 
@@ -122,6 +127,7 @@ app.post('/api/print', async (req, res) => {
     const n = Math.max(1, Math.min(MAX_COPIES, parseInt(copies, 10) || 1));
     const { buffer } = dataUrlToBuffer(image);
     const id = sessionId();
+    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     const pdfPath = path.join(OUTPUT_DIR, `print-${id}.pdf`);
     await buildPdf(buffer, pdfPath);
 
@@ -178,9 +184,42 @@ app.post('/api/email', async (req, res) => {
 app.post('/api/save', (req, res) => {
   try {
     const { buffer, ext } = dataUrlToBuffer(req.body.image);
+    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     const file = path.join(OUTPUT_DIR, `photo-${sessionId()}.${ext}`);
     fs.writeFileSync(file, buffer);
     res.json({ ok: true, file: path.basename(file) });
+  } catch (err) {
+    res.status(400).json({ error: String(err.message || err) });
+  }
+});
+
+// ---------- booth wall ----------
+
+app.get('/api/wall', (req, res) => {
+  fs.mkdirSync(WALL_DIR, { recursive: true });
+  const photos = fs
+    .readdirSync(WALL_DIR)
+    .filter((f) => /^\d+-[a-z0-9]+\.jpg$/.test(f))
+    .sort()
+    .reverse()
+    .slice(0, WALL_LIMIT)
+    .map((f) => {
+      const id = f.replace('.jpg', '');
+      const hasThumb = fs.existsSync(path.join(WALL_DIR, `${id}-thumb.jpg`));
+      return { id, url: `/wall/${f}`, thumb: `/wall/${hasThumb ? `${id}-thumb.jpg` : f}`, createdAt: Number(id.split('-')[0]) };
+    });
+  res.json({ photos, total: photos.length });
+});
+
+app.post('/api/wall', (req, res) => {
+  try {
+    const full = dataUrlToBuffer(req.body.image);
+    const thumb = req.body.thumb ? dataUrlToBuffer(req.body.thumb) : null;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    fs.mkdirSync(WALL_DIR, { recursive: true });
+    fs.writeFileSync(path.join(WALL_DIR, `${id}.jpg`), full.buffer);
+    if (thumb) fs.writeFileSync(path.join(WALL_DIR, `${id}-thumb.jpg`), thumb.buffer);
+    res.json({ ok: true, id });
   } catch (err) {
     res.status(400).json({ error: String(err.message || err) });
   }
