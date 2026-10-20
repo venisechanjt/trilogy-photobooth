@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Photobooth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">📸 <span id="brand-name">Photobooth</span></div>
+    <ol class="steps" id="steps">
+      <li data-step="layout">Layout</li>
+      <li data-step="frame" class="only-4r">Frame</li>
+      <li data-step="camera">Shoot</li>
+      <li data-step="select">Pick &amp; style</li>
+      <li data-step="print">Print</li>
+    </ol>
+    <button class="icon-btn" id="settings-btn" title="Settings" aria-label="Settings">⚙️</button>
+  </header>
+
+  <main>
+    <!-- 1. Layout -->
+    <section class="screen active" id="screen-layout">
+      <h1>Choose your print</h1>
+      <p class="sub">You'll take 8 photos, then pick your favourites.</p>
+      <div class="layout-cards" id="layout-cards"></div>
+    </section>
+
+    <!-- 2. Frame (4R only) -->
+    <section class="screen" id="screen-frame">
+      <h1>Choose your 4R frame</h1>
+      <p class="sub">The frame decides how many photos go on your print.</p>
+      <div class="frame-picker">
+        <div class="frame-options">
+          <h3>Layout</h3>
+          <div class="geo-list" id="geo-list"></div>
+          <h3>Style</h3>
+          <div class="theme-list" id="frame-theme-list"></div>
+        </div>
+        <div class="preview-pane">
+          <canvas id="frame-preview" class="preview-canvas"></canvas>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" data-go="layout">← Back</button>
+        <button class="btn primary" id="frame-next">Use this frame →</button>
+      </div>
+    </section>
+
+    <!-- 3. Camera -->
+    <section class="screen" id="screen-camera">
+      <div class="camera-layout">
+        <div class="viewfinder" id="viewfinder">
+          <video id="video" autoplay playsinline muted></video>
+          <div class="guide" id="guide"></div>
+          <div class="countdown" id="countdown"></div>
+          <div class="flash" id="flash"></div>
+          <div class="cam-error" id="cam-error" hidden></div>
+        </div>
+        <aside class="camera-side">
+          <label class="field">
+            <span>Camera</span>
+            <select id="camera-select"></select>
+          </label>
+          <p class="shot-counter"><b id="shot-count">0</b> / 8 photos</p>
+          <div class="shots" id="shots"></div>
+          <p class="hint" id="camera-hint">Press start and strike a pose! Tap any photo afterwards to retake it.</p>
+          <div class="cam-buttons">
+            <button class="btn primary big" id="start-shoot">Start ▶</button>
+            <button class="btn ghost" id="retake-all" hidden>↺ Retake all</button>
+          </div>
+        </aside>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" id="camera-back">← Back</button>
+        <button class="btn primary" id="camera-next" disabled>Pick photos →</button>
+      </div>
+    </section>
+
+    <!-- 4. Select photos + style -->
+    <section class="screen" id="screen-select">
+      <div class="select-layout">
+        <div class="select-photos">
+          <h2>Pick <span id="need-count">4</span> photos <small id="picked-count"></small></h2>
+          <p class="sub left">Tap to add in order · tap again to remove</p>
+          <div class="pick-grid" id="pick-grid"></div>
+          <button class="btn ghost small" id="clear-pick">Clear selection</button>
+          <h3>Frame style</h3>
+          <div class="theme-list" id="select-theme-list"></div>
+          <button class="btn ghost small only-4r" id="change-frame">Change 4R frame layout</button>
+        </div>
+        <div class="preview-pane">
+          <canvas id="select-preview" class="preview-canvas"></canvas>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" data-go="camera">← Back to camera</button>
+        <button class="btn primary" id="select-next" disabled>Looks good →</button>
+      </div>
+    </section>
+
+    <!-- 5. Print -->
+    <section class="screen" id="screen-print">
+      <div class="print-layout">
+        <div class="preview-pane">
+          <canvas id="print-preview" class="preview-canvas sheet"></canvas>
+          <p class="hint center" id="sheet-note"></p>
+        </div>
+        <div class="print-options">
+          <h2>Almost done!</h2>
+          <div class="field">
+            <span>How many prints?</span>
+            <div class="stepper">
+              <button class="btn round" id="qty-minus" aria-label="Fewer">−</button>
+              <output id="qty">1</output>
+              <button class="btn round" id="qty-plus" aria-label="More">+</button>
+            </div>
+            <small class="hint" id="qty-note"></small>
+          </div>
+          <label class="field">
+            <span>Email me a digital copy <em>(optional)</em></span>
+            <input type="email" id="email" placeholder="you@example.com" autocomplete="email" inputmode="email" />
+          </label>
+          <button class="btn primary big" id="print-btn">🖨️ Print</button>
+          <div class="secondary-actions">
+            <button class="btn ghost small" id="email-only-btn">✉️ Email only, no print</button>
+            <button class="btn ghost small" id="download-btn">⬇ Download</button>
+          </div>
+          <p class="status" id="print-status" role="status"></p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" data-go="select">← Change photos</button>
+      </div>
+    </section>
+
+    <!-- 6. Done -->
+    <section class="screen" id="screen-done">
+      <div class="done">
+        <div class="done-emoji">🎉</div>
+        <h1 id="done-title">Your photos are printing!</h1>
+        <p class="sub" id="done-detail"></p>
+        <button class="btn primary big" id="restart">Start a new session</button>
+        <p class="hint" id="restart-timer"></p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Settings (for the booth operator) -->
+  <dialog id="settings">
+    <form method="dialog" class="settings-form">
+      <h2>Booth settings</h2>
+      <label class="field"><span>Event name (printed on the frame)</span><input id="set-event" maxlength="40" /></label>
+      <label class="field"><span>Printer</span><select id="set-printer"><option value="">System default</option></select></label>
+      <label class="field"><span>Countdown (seconds)</span><input id="set-countdown" type="number" min="1" max="10" /></label>
+      <label class="field"><span>Max prints per session</span><input id="set-max" type="number" min="1" max="50" /></label>
+      <label class="check"><input type="checkbox" id="set-mirror" /> Mirror photos (selfie view)</label>
+      <p class="hint" id="server-info"></p>
+      <div class="actions">
+        <button class="btn primary" value="save" id="settings-save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Used only for the browser-print fallback -->
+  <div id="print-area" aria-hidden="true"></div>
+
+  <script src="frames.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
