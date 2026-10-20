@@ -9,19 +9,28 @@
 
 const DPI = 300;
 
-function stack(count, { W, H, margin, top, gap, footer }) {
-  const w = W - margin * 2;
-  const h = (H - top - footer - gap * (count - 1)) / count;
-  return Array.from({ length: count }, (_, i) => ({ x: margin, y: top + i * (h + gap), w, h }));
+// Photo windows always take the shape of the photos (aspect = width / height), so photos are never cropped.
+// The block of photos is centred in the space above the footer.
+function stack(count, { W, H, margin, top, gap, footer }, aspect) {
+  const availH = H - top - footer;
+  const w = Math.min(W - margin * 2, ((availH - gap * (count - 1)) / count) * aspect);
+  const h = w / aspect;
+  const y0 = top + (availH - (count * h + gap * (count - 1))) / 2;
+  return Array.from({ length: count }, (_, i) => ({ x: (W - w) / 2, y: y0 + i * (h + gap), w, h }));
 }
 
-function grid(cols, rows, { W, H, margin, top, gap, footer }) {
-  const w = (W - margin * 2 - gap * (cols - 1)) / cols;
-  const h = (H - top - footer - gap * (rows - 1)) / rows;
+function grid(cols, rows, { W, H, margin, top, gap, footer }, aspect) {
+  const availH = H - top - footer;
+  const cellW = (W - margin * 2 - gap * (cols - 1)) / cols;
+  const cellH = (availH - gap * (rows - 1)) / rows;
+  const w = Math.min(cellW, cellH * aspect);
+  const h = w / aspect;
+  const x0 = (W - (cols * w + gap * (cols - 1))) / 2;
+  const y0 = top + (availH - (rows * h + gap * (rows - 1))) / 2;
   const slots = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      slots.push({ x: margin + c * (w + gap), y: top + r * (h + gap), w, h });
+      slots.push({ x: x0 + c * (w + gap), y: y0 + r * (h + gap), w, h });
     }
   }
   return slots;
@@ -30,17 +39,24 @@ function grid(cols, rows, { W, H, margin, top, gap, footer }) {
 const STRIP = { W: 600, H: 1800, margin: 36, top: 40, gap: 24, footer: 240 };
 const FOUR_R = { W: 1200, H: 1800, margin: 60, top: 60, gap: 30, footer: 260 };
 
-// A geometry decides how many photos a frame holds and where they go.
+// A geometry decides how many photos a frame holds and how they are arranged.
+// build(aspect, size) returns the photo windows; themes may change size.footer.
 const GEOMETRIES = {
-  strip3: { id: 'strip3', name: '3 Cuts', layout: 'strip3', size: STRIP, slots: stack(3, STRIP) },
-  strip4: { id: 'strip4', name: '4 Cuts', layout: 'strip4', size: STRIP, slots: stack(4, STRIP) },
-  '4r-single': { id: '4r-single', name: 'Single', layout: '4r', size: FOUR_R, slots: stack(1, { ...FOUR_R, margin: 70, top: 70 }) },
-  '4r-duo': { id: '4r-duo', name: 'Duo', layout: '4r', size: FOUR_R, slots: stack(2, { ...FOUR_R, gap: 40 }) },
-  '4r-trio': { id: '4r-trio', name: 'Trio', layout: '4r', size: FOUR_R, slots: stack(3, { ...FOUR_R, gap: 36 }) },
-  '4r-quad': { id: '4r-quad', name: 'Grid of 4', layout: '4r', size: FOUR_R, slots: grid(2, 2, FOUR_R) },
-  '4r-six': { id: '4r-six', name: 'Grid of 6', layout: '4r', size: FOUR_R, slots: grid(2, 3, FOUR_R) },
-  '4r-eight': { id: '4r-eight', name: 'Grid of 8', layout: '4r', size: FOUR_R, slots: grid(2, 4, FOUR_R) },
+  strip3: { id: 'strip3', name: '3 Cuts', layout: 'strip3', size: STRIP, count: 3, build: (a, sz) => stack(3, sz, a) },
+  strip4: { id: 'strip4', name: '4 Cuts', layout: 'strip4', size: STRIP, count: 4, build: (a, sz) => stack(4, sz, a) },
+  '4r-single': { id: '4r-single', name: 'Single', layout: '4r', size: FOUR_R, count: 1, build: (a, sz) => stack(1, { ...sz, margin: 70, top: 70 }, a) },
+  '4r-duo': { id: '4r-duo', name: 'Duo', layout: '4r', size: FOUR_R, count: 2, build: (a, sz) => stack(2, { ...sz, gap: 40 }, a) },
+  '4r-trio': { id: '4r-trio', name: 'Trio', layout: '4r', size: FOUR_R, count: 3, build: (a, sz) => stack(3, { ...sz, gap: 36 }, a) },
+  '4r-quad': { id: '4r-quad', name: 'Grid of 4', layout: '4r', size: FOUR_R, count: 4, build: (a, sz) => grid(2, 2, sz, a) },
+  '4r-six': { id: '4r-six', name: 'Grid of 6', layout: '4r', size: FOUR_R, count: 6, build: (a, sz) => grid(2, 3, sz, a) },
+  '4r-eight': { id: '4r-eight', name: 'Grid of 8', layout: '4r', size: FOUR_R, count: 8, build: (a, sz) => grid(2, 4, sz, a) },
 };
+
+// Shape of the camera's photos; updated by the app once the camera starts. 4:3 until then.
+let photoAspect = 4 / 3;
+function setPhotoAspect(a) {
+  if (a > 0 && isFinite(a)) photoAspect = a;
+}
 
 const LAYOUTS = {
   strip3: { id: 'strip3', name: '3 Cuts', blurb: '2×6" photo strip · 3 photos', geometries: ['strip3'], strip: true },
@@ -101,11 +117,39 @@ function star(ctx, x, y, r) {
  *   overlay                     optional PNG per layout id, drawn on top of everything.
  *                               Use this for artwork made in Canva/Photoshop: export a PNG at
  *                               600x1800 (strips) or 1200x1800 (4R) with transparent photo windows
- *                               that line up with the slots above, put it in /public/frames/ and add e.g.
+ *                               that line up with the slots (they follow the camera's shape, so design
+ *                               for the camera you will use at the event), put it in /public/frames/ and add e.g.
  *                               overlay: { strip4: 'frames/my-wedding-4cut.png' }
  *                               Set caption: false if your artwork already has text on it.
  */
 const THEMES = [
+  {
+    id: 'trilogy-red',
+    name: 'Trilogy Red',
+    swatch: '#ad0d1a',
+    text: '#fffaf3',
+    accent: '#fffaf3',
+    radius: 0,
+    tagline: 'friendship is the key!',
+    footer: { strip: 330, '4r': 300 },
+    background(ctx, W, H) {
+      ctx.fillStyle = '#ad0d1a';
+      ctx.fillRect(0, 0, W, H);
+    },
+    // italic serif wordmark + tagline, as on the Trilogy strip artwork
+    caption(ctx, W, H, geo, title) {
+      const bottom = Math.max(...geo.slots.map((s) => s.y + s.h));
+      const cy = (bottom + H) / 2;
+      const big = W < 800 ? 110 : 150;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = this.text;
+      fitFont(ctx, title, W - 60, 'italic 700', big, "'Cormorant Garamond', Georgia, serif");
+      ctx.fillText(title, W / 2, cy - big * 0.02);
+      fitFont(ctx, this.tagline, W - 60, 'italic 600', big * 0.4, "'Cormorant Garamond', Georgia, serif");
+      ctx.fillText(this.tagline, W / 2, cy + big * 0.62);
+    },
+  },
   {
     id: 'trilogy-cream',
     name: 'Trilogy Cream',
@@ -255,6 +299,15 @@ const THEMES = [
   },
 ];
 
+function fitFont(ctx, text, maxW, style, size, family) {
+  ctx.font = `${style} ${size}px ${family}`;
+  while (ctx.measureText(text).width > maxW && size > 12) {
+    size -= 2;
+    ctx.font = `${style} ${size}px ${family}`;
+  }
+  return size;
+}
+
 const imageCache = new Map();
 function loadImage(src) {
   if (!imageCache.has(src)) {
@@ -271,14 +324,13 @@ function loadImage(src) {
   return imageCache.get(src);
 }
 
-// Draws a source (canvas/image) into a slot, cropping it to fill the slot ("object-fit: cover").
-function drawCover(ctx, src, slot) {
-  const sw = src.width;
-  const sh = src.height;
-  const scale = Math.max(slot.w / sw, slot.h / sh);
-  const cw = slot.w / scale;
-  const ch = slot.h / scale;
-  ctx.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, slot.x, slot.y, slot.w, slot.h);
+// Draws a source (canvas/image) into a slot without cropping it ("object-fit: contain").
+// Slots already have the photo's shape, so normally the photo fills the slot exactly.
+function drawContain(ctx, src, slot) {
+  const scale = Math.min(slot.w / src.width, slot.h / src.height);
+  const w = src.width * scale;
+  const h = src.height * scale;
+  ctx.drawImage(src, slot.x + (slot.w - w) / 2, slot.y + (slot.h - h) / 2, w, h);
 }
 
 /*
@@ -288,8 +340,12 @@ function drawCover(ctx, src, slot) {
  *   opts.caption / opts.date: footer text
  */
 async function renderFrame(canvas, geometryId, themeId, photos = [], opts = {}) {
-  const geo = GEOMETRIES[geometryId];
+  const base = GEOMETRIES[geometryId];
+  const first = photos.find(Boolean);
   const theme = THEMES.find((t) => t.id === themeId) || THEMES[0];
+  const themeFooter = theme.footer && theme.footer[base.layout === '4r' ? '4r' : 'strip'];
+  const size = themeFooter ? { ...base.size, footer: themeFooter } : base.size;
+  const geo = { ...base, size, slots: base.build(first ? first.width / first.height : photoAspect, size) };
   const { W, H, footer } = geo.size;
   const scale = opts.scale || 1;
   canvas.width = Math.round(W * scale);
@@ -313,7 +369,7 @@ async function renderFrame(canvas, geometryId, themeId, photos = [], opts = {}) 
     ctx.clip();
     const photo = photos[i];
     if (photo) {
-      drawCover(ctx, photo, slot);
+      drawContain(ctx, photo, slot);
     } else {
       ctx.fillStyle = '#d9d9de';
       ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
@@ -334,7 +390,9 @@ async function renderFrame(canvas, geometryId, themeId, photos = [], opts = {}) 
     if (img) ctx.drawImage(img, 0, 0, W, H);
   }
 
-  if (theme.caption !== false && opts.caption !== false) {
+  if (typeof theme.caption === 'function' && opts.caption !== false) {
+    theme.caption(ctx, W, H, geo, opts.caption || 'trilogy');
+  } else if (theme.caption !== false && opts.caption !== false) {
     const cy = H - footer / 2;
     const title = (opts.caption || 'PHOTOBOOTH').toUpperCase();
     ctx.textAlign = 'center';
@@ -373,4 +431,4 @@ function renderPrintSheet(frameCanvas, isStrip) {
   return sheet;
 }
 
-window.Frames = { DPI, GEOMETRIES, LAYOUTS, THEMES, renderFrame, renderPrintSheet };
+window.Frames = { DPI, GEOMETRIES, LAYOUTS, THEMES, renderFrame, renderPrintSheet, setPhotoAspect };

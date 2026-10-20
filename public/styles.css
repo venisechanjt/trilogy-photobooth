@@ -529,3 +529,35 @@ dialog::backdrop { background: rgba(28, 46, 33, 0.5); }
 .segmented button.active { background: var(--forest); color: var(--cream); }
 .segmented button:disabled { cursor: not-allowed; opacity: 0.5; }
 .segmented button:focus-visible { outline: 3px solid var(--caramel); outline-offset: 2px; }
+
+/* ---------- logo ---------- */
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-logo {
+  height: 52px;
+  width: auto;
+  cursor: pointer;
+  transform-origin: 50% 90%;
+  transition: transform 0.2s ease;
+}
+.brand-logo:hover { animation: wiggle 0.6s ease-in-out; }
+.brand-logo.bounce { animation: bounce 0.7s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes wiggle { 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
+@keyframes bounce { 0% { transform: scale(1); } 30% { transform: scale(1.15, 0.85); } 55% { transform: translateY(-8px) scale(0.95, 1.08); } 100% { transform: none; } }
+
+/* ---------- background animation ---------- */
+.fx-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; }
+.fx-bg { z-index: 0; }
+.fx-top { z-index: 50; }
+.topbar, main { position: relative; z-index: 1; }
+.layout-card.tilt { transition: transform 0.08s linear, border-color 0.15s ease; }
+
+/* ---------- photos are never cropped ---------- */
+.shot, .pick { aspect-ratio: var(--photo-aspect, 4 / 3); }
+.shot img, .pick img { object-fit: contain; }
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo:hover, .brand-logo.bounce { animation: none; }
+}
+@media (max-width: 900px) {
+  .brand-logo { height: 40px; }
+}

@@ -31,7 +31,7 @@ Press ⚙️ (top right) to set the event name printed on the frames, the printe
 
 On the camera screen, guests choose:
 * **Shooting mode:** **Auto** takes all 8 photos in a row. **Manual** takes one photo each time the guest taps *Take photo* (the space bar or a presentation clicker also works).
-* **Timer:** 0s, 3s or 5s before each photo.
+* **Timer:** 3s or 5s before each photo, plus 0s in Manual mode.
 
 ## Printing
 
@@ -61,7 +61,7 @@ Frames are defined in `public/frames.js`:
 
 To use artwork you designed in Canva or Photoshop:
 
-1. Export a PNG at **600×1800** (strip) or **1200×1800** (4R). Leave the photo windows transparent and line them up with the slot positions in `GEOMETRIES`.
+1. Export a PNG at **600×1800** (strip) or **1200×1800** (4R). Leave the photo windows transparent and line them up with the photo windows the app draws for your camera.
 2. Save it in `public/frames/`.
 3. Add a theme:
 
@@ -81,4 +81,4 @@ To use artwork you designed in Canva or Photoshop:
 },
 ```
 
-Photos are cropped to fill each window, and the camera screen shows a dashed guide marking the part of the picture that will be used.
+Photos are never cropped: each frame's photo windows take the shape of the camera's pictures (for example 16:9 on most laptop webcams). Because of that, PNG overlay artwork only lines up for the camera shape it was designed for. Frames drawn in code (like *Trilogy Red*) adjust automatically.

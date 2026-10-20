@@ -12,6 +12,10 @@
   } catch {}
   if (!TIMERS.includes(settings.timer)) settings.timer = DEFAULT_SETTINGS.timer;
   if (!['auto', 'manual'].includes(settings.mode)) settings.mode = DEFAULT_SETTINGS.mode;
+  // a 0s timer only makes sense when the guest presses the button for every photo
+  if (settings.mode === 'auto' && settings.timer === 0) settings.timer = DEFAULT_SETTINGS.timer;
+  if (settings.photoAspect) Frames.setPhotoAspect(settings.photoAspect);
+  document.documentElement.style.setProperty('--photo-aspect', settings.photoAspect || 4 / 3);
   const saveSettings = () => {
     try {
       localStorage.setItem('photobooth-settings', JSON.stringify(settings));
@@ -30,7 +34,7 @@
     copies: 1,
   };
 
-  const need = () => GEOMETRIES[state.geometry].slots.length;
+  const need = () => GEOMETRIES[state.geometry].count;
   const isStrip = () => LAYOUTS[state.layout].strip;
   const frameOpts = () => ({ caption: settings.eventName });
   const selectedPhotos = () => state.selection.map((i) => state.shots[i]);
@@ -39,6 +43,7 @@
   let current = 'layout';
   function go(screen) {
     if (screen !== 'camera') stopShootLoop();
+    if (screen !== 'done') window.FX?.clear();
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === `screen-${screen}`));
     current = screen;
     const order = ['layout', 'frame', 'camera', 'select', 'print', 'done'];
@@ -79,7 +84,7 @@
       card.className = 'layout-card';
       const canvas = document.createElement('canvas');
       const geoId = layout.id === '4r' ? '4r-quad' : layout.geometries[0];
-      await renderFrame(canvas, geoId, layout.id === '4r' ? 'trilogy-forest' : 'trilogy-cream', [], { ...frameOpts(), scale: 0.18 });
+      await renderFrame(canvas, geoId, { strip3: 'trilogy-cream', strip4: 'trilogy-red', '4r': 'trilogy-forest' }[layout.id], [], { ...frameOpts(), scale: 0.18 });
       card.innerHTML = `<div class="thumb"></div><h2>${layout.name}</h2><p>${layout.blurb}</p>`;
       card.querySelector('.thumb').appendChild(canvas);
       card.addEventListener('click', () => chooseLayout(layout.id));
@@ -127,7 +132,7 @@
       const c = document.createElement('canvas');
       renderFrame(c, id, 'trilogy-cream', [], { scale: 0.05, caption: false });
       b.appendChild(c);
-      b.insertAdjacentHTML('beforeend', `<span>${g.name}<small>${g.slots.length} photo${g.slots.length > 1 ? 's' : ''}</small></span>`);
+      b.insertAdjacentHTML('beforeend', `<span>${g.name}<small>${g.count} photo${g.count > 1 ? 's' : ''}</small></span>`);
       b.addEventListener('click', () => {
         state.geometry = id;
         state.selection = state.selection.slice(0, need());
@@ -193,24 +198,15 @@
     el.hidden = false;
   }
 
+  // photos are used uncropped, so frames adapt to the camera's shape
   video.addEventListener('loadedmetadata', () => {
+    const aspect = video.videoWidth / video.videoHeight;
     $('#viewfinder').style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
-    positionGuide();
+    document.documentElement.style.setProperty('--photo-aspect', aspect);
+    Frames.setPhotoAspect(aspect);
+    settings.photoAspect = aspect;
+    saveSettings();
   });
-
-  // Shows which part of the camera image will end up inside the frame's photo windows.
-  function positionGuide() {
-    const guide = $('#guide');
-    if (!state.geometry || !video.videoWidth) return (guide.style.display = 'none');
-    const slot = GEOMETRIES[state.geometry].slots[0];
-    const slotAspect = slot.w / slot.h;
-    const camAspect = video.videoWidth / video.videoHeight;
-    let w = 100;
-    let h = 100;
-    if (slotAspect < camAspect) w = (slotAspect / camAspect) * 100;
-    else h = (camAspect / slotAspect) * 100;
-    Object.assign(guide.style, { display: 'block', width: `${w}%`, height: `${h}%`, left: `${(100 - w) / 2}%`, top: `${(100 - h) / 2}%` });
-  }
 
   $('#camera-select').addEventListener('change', (e) => {
     settings.cameraId = e.target.value;
@@ -262,6 +258,7 @@
     });
     document.querySelectorAll('#timer-select button').forEach((b) => {
       b.classList.toggle('active', Number(b.dataset.timer) === settings.timer);
+      b.hidden = !manual && b.dataset.timer === '0';
       b.disabled = shooting;
     });
   }
@@ -269,6 +266,7 @@
   document.querySelectorAll('#mode-select button').forEach((b) =>
     b.addEventListener('click', () => {
       settings.mode = b.dataset.mode;
+      if (settings.mode === 'auto' && settings.timer === 0) settings.timer = 3;
       saveSettings();
       renderShots();
     })
@@ -329,8 +327,7 @@
       if (!(await countdown(token))) break;
       state.shots[i] = capture();
       renderShots();
-      // with no timer, still leave a moment to change poses between automatic shots
-      await wait(settings.timer === 0 && indexes.length > 1 ? 1500 : 600);
+      await wait(600);
     }
     if (token === shootToken) shooting = false;
     renderShots();
@@ -579,6 +576,7 @@
     $('#done-title').textContent = title;
     $('#done-detail').textContent = detail;
     go('done');
+    window.FX?.confetti();
     let left = 30;
     const tick = () => ($('#restart-timer').textContent = `Starting over in ${left}s`);
     tick();
@@ -650,7 +648,7 @@
       if (res.ok) server = await res.json();
     } catch {}
     await document.fonts.ready.catch(() => {});
-    await Promise.all(['800 40px Archivo', '500 20px "Roboto Condensed"'].map((f) => document.fonts.load(f))).catch(() => {});
+    await Promise.all(['800 40px Archivo', '500 20px "Roboto Condensed"', 'italic 700 40px "Cormorant Garamond"', 'italic 600 40px "Cormorant Garamond"'].map((f) => document.fonts.load(f))).catch(() => {});
     buildLayoutCards();
   }
   boot();
