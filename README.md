@@ -48,7 +48,7 @@ The server turns every print into a **4×6" (4R) PDF** and sends it to the lapto
 
 ## Home page and booth wall
 
-The booth opens on a home page with a **Start** button and the **booth wall**: every finished photo whose guest kept *Pin my photos on the booth wall* ticked on the print screen. New photos pop onto the wall within about 15 seconds.
+The booth opens on a home page with the welcome and **Start** button on the left and the **booth wall** hanging beside it on the right (stacked on phones): every finished photo whose guest kept *Pin my photos on the booth wall* ticked on the print screen. New photos pop onto the wall within about 15 seconds.
 
 Wall photos are saved in `output/wall/`. To take a photo off the wall, delete its two files there (`<id>.jpg` and `<id>-thumb.jpg`). Back up the folder after the event if you want to keep them.
 
