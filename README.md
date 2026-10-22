@@ -67,7 +67,9 @@ npm run setup-email
 
 It asks for the Gmail address the photos are sent from and a Gmail **App Password**, sends you a test email, and saves the settings to `.env`. Restart the booth afterwards. To get an App Password: turn on [2-Step Verification](https://myaccount.google.com/signinoptions/twosv), then create one at [App Passwords](https://myaccount.google.com/apppasswords).
 
-To check email at any time, use ⚙️ → *Email* → **Send test**. Guests receive the framed photo plus their selected original shots.
+**Email template:** ⚙️ → *Email template*. Edit the subject and message; `{event}` becomes the event name and `{date}` today's date. Every guest email attaches the photostrip (`<event>-photostrip.jpg`). Tick *Also attach the individual photos* to send the separate shots too. The template is saved in `email-template.json` on the laptop.
+
+To check email at any time, use ⚙️ → *Email* → **Send test**. It sends exactly what guests receive, with a sample photostrip attached and "[Test]" in the subject.
 
 Every finished print is also saved to `output/`.
 

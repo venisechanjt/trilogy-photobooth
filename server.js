@@ -192,65 +192,107 @@ app.post('/api/print', async (req, res) => {
   }
 });
 
-app.post('/api/email', async (req, res) => {
-  try {
-    const { email, image, photos = [] } = req.body;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '')) {
-      return res.status(400).json({ error: 'Please enter a valid email address' });
-    }
-    const transport = mailer();
-    if (!transport) {
-      return res.status(503).json({ error: 'Email is not configured on this photobooth (see .env)' });
-    }
+// ---------- email template (edited in settings, saved in email-template.json) ----------
 
-    const main = dataUrlToBuffer(image);
-    const attachments = [{ filename: `photobooth.${main.ext}`, content: main.buffer }];
-    photos.slice(0, 8).forEach((p, i) => {
+const TEMPLATE_PATH = path.resolve(process.env.EMAIL_TEMPLATE_PATH || path.join(__dirname, 'email-template.json'));
+const DEFAULT_TEMPLATE = {
+  subject: 'Your {event} photostrip 📸',
+  body: 'Hi there!\n\nThanks for stopping by the {event} photobooth. Your photostrip is attached, so you can keep it forever.\n\nSee you again soon,\n{event}',
+  attachPhotos: false,
+};
+
+function readTemplate() {
+  try {
+    return { ...DEFAULT_TEMPLATE, ...JSON.parse(fs.readFileSync(TEMPLATE_PATH, 'utf8')) };
+  } catch {
+    return { ...DEFAULT_TEMPLATE };
+  }
+}
+
+const escapeHtml = (t) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+// Fills in {event} and {date} and builds the plain-text and HTML versions of the message.
+function buildEmail(template, eventName) {
+  const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const fill = (t) => t.replace(/\{event\}/gi, eventName).replace(/\{date\}/gi, date);
+  const text = fill(template.body);
+  const html = text
+    .split(/\n\s*\n/)
+    .map((para) => `<p style="margin:0 0 14px">${escapeHtml(para).replace(/\n/g, '<br>')}</p>`)
+    .join('');
+  return { subject: fill(template.subject), text, html: `<div style="font-family:Georgia,serif;font-size:16px;line-height:1.5;color:#22352a">${html}</div>` };
+}
+
+const eventNameFrom = (req) => String(req.body.event || process.env.EVENT_NAME || 'trilogy').slice(0, 60);
+const fileSlug = (t) => t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'photobooth';
+
+app.get('/api/email/template', (req, res) => res.json(req.query.default ? DEFAULT_TEMPLATE : readTemplate()));
+
+app.put('/api/email/template', requireAdmin, (req, res) => {
+  const { subject, body, attachPhotos } = req.body;
+  if (typeof subject !== 'string' || !subject.trim() || subject.length > 150) return res.status(400).json({ error: 'The subject must be 1–150 characters.' });
+  if (typeof body !== 'string' || !body.trim() || body.length > 5000) return res.status(400).json({ error: 'The message must be 1–5000 characters.' });
+  const template = { subject: subject.trim(), body: body.replace(/\r\n/g, '\n').trim(), attachPhotos: Boolean(attachPhotos) };
+  fs.writeFileSync(TEMPLATE_PATH, JSON.stringify(template, null, 2));
+  res.json({ ok: true, template });
+});
+
+// Sends the guest their photostrip (plus the individual photos if the template says so).
+async function sendPhotoEmail(req, to, { subjectPrefix = '' } = {}) {
+  const transport = mailer();
+  if (!transport) {
+    const err = new Error('Email isn’t set up yet. Run "npm run setup-email", then restart the booth.');
+    err.status = 503;
+    throw err;
+  }
+  const template = readTemplate();
+  const eventName = eventNameFrom(req);
+  const { subject, text, html } = buildEmail(template, eventName);
+  const attachments = [];
+  if (req.body.image) {
+    const strip = dataUrlToBuffer(req.body.image);
+    attachments.push({ filename: `${fileSlug(eventName)}-photostrip.${strip.ext}`, content: strip.buffer });
+  }
+  if (template.attachPhotos) {
+    (req.body.photos || []).slice(0, 8).forEach((p, i) => {
       const { buffer, ext } = dataUrlToBuffer(p);
       attachments.push({ filename: `photo-${i + 1}.${ext}`, content: buffer });
     });
+  }
+  await transport.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject: subjectPrefix + subject, text, html, attachments });
+}
 
-    const eventName = process.env.EVENT_NAME || 'our photobooth';
-    await transport.sendMail({
-      from: process.env.MAIL_FROM || process.env.SMTP_USER,
-      to: email,
-      subject: process.env.MAIL_SUBJECT || 'Your photobooth pictures 📸',
-      text: `Thanks for visiting ${eventName}! Your photos are attached.`,
-      html: `<p>Thanks for visiting <b>${eventName}</b>! 📸</p><p>Your photos are attached to this email.</p>`,
-      attachments,
-    });
-    console.log(`Emailed photos to ${email}`);
+const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e || '');
+
+app.post('/api/email', async (req, res) => {
+  if (!validEmail(req.body.email)) return res.status(400).json({ error: 'Please enter a valid email address' });
+  if (!req.body.image) return res.status(400).json({ error: 'Missing photostrip' });
+  try {
+    await sendPhotoEmail(req, req.body.email);
+    console.log(`Emailed photostrip to ${req.body.email}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('Email failed:', err);
-    res.status(500).json({ error: friendlyMailError(err) });
+    res.status(err.status || 500).json({ error: err.status ? err.message : friendlyMailError(err) });
   }
 });
 
-// Sends a short test email so the operator can check the setup from the settings screen.
 app.post('/api/admin/unlock', (req, res) => {
   const result = checkPin(req.body.pin);
   if (result.ok) return res.json({ ok: true });
   res.status(result.status).json({ error: result.error });
 });
 
+// Sends the guest email exactly as guests get it (with a sample strip), so the operator can check it.
 app.post('/api/email/test', requireAdmin, async (req, res) => {
-  const { to } = req.body;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to || '')) return res.status(400).json({ error: 'Please enter a valid email address' });
-  const transport = mailer();
-  if (!transport) return res.status(503).json({ error: 'Email isn’t set up yet. Run "npm run setup-email", then restart the booth.' });
+  if (!validEmail(req.body.to)) return res.status(400).json({ error: 'Please enter a valid email address' });
   try {
-    await transport.sendMail({
-      from: process.env.MAIL_FROM || process.env.SMTP_USER,
-      to,
-      subject: 'Photobooth test email ✔',
-      text: 'Email from your photobooth works. Guests will receive their photos like this.',
-    });
-    console.log(`Test email sent to ${to}`);
+    await sendPhotoEmail(req, req.body.to, { subjectPrefix: '[Test] ' });
+    console.log(`Test email sent to ${req.body.to}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('Test email failed:', err);
-    res.status(500).json({ error: friendlyMailError(err) });
+    res.status(err.status || 500).json({ error: err.status ? err.message : friendlyMailError(err) });
   }
 });
 

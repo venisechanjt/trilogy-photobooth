@@ -508,8 +508,8 @@
   // headers for settings actions: the server checks the PIN the settings were unlocked with
   const adminHeaders = () => (adminPin ? { 'x-admin-pin': adminPin } : {});
 
-  async function postJSON(url, body) {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify(body) });
+  async function postJSON(url, body, method = 'POST') {
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     return data;
@@ -563,7 +563,7 @@
     }
     if (email) {
       jobs.push(
-        postJSON('/api/email', { email, image: frameData, photos: selectedPhotos().map((p) => scaledJpeg(p)) })
+        postJSON('/api/email', { email, event: settings.eventName, image: frameData, photos: selectedPhotos().map((p) => scaledJpeg(p)) })
           .then((r) => ({ type: 'email', ok: true, r }))
           .catch((e) => ({ type: 'email', ok: false, e }))
       );
@@ -755,6 +755,7 @@
         ? 'Set up. Send yourself a test to check it.'
         : 'Not set up yet. Run "npm run setup-email" in PowerShell, then restart the booth.';
     $('#test-email-status').textContent = '';
+    loadEmailTemplate();
     $('#settings').showModal();
   }
 
@@ -769,12 +770,54 @@
     btn.disabled = true;
     status.textContent = 'Sending…';
     try {
-      await postJSON('/api/email/test', { to: input.value.trim() });
+      // the test uses the template as it is on screen, with a sample photostrip attached
+      if (templateChanged()) await saveEmailTemplate();
+      const sample = await renderFrame(document.createElement('canvas'), 'strip3', sampleTheme(), [], frameOpts());
+      await postJSON('/api/email/test', { to: input.value.trim(), event: settings.eventName, image: sample.toDataURL('image/jpeg', 0.9) });
       status.textContent = `✓ Sent to ${input.value.trim()}. Check the inbox (and spam).`;
     } catch (err) {
       status.textContent = `✗ ${err.message}`;
     }
     btn.disabled = false;
+  });
+
+  // ---------- email template ----------
+  let savedTemplate = null;
+  const templateFromForm = () => ({ subject: $('#tpl-subject').value, body: $('#tpl-body').value, attachPhotos: $('#tpl-photos').checked });
+  const templateChanged = () => savedTemplate && JSON.stringify(templateFromForm()) !== JSON.stringify(savedTemplate);
+  const sampleTheme = () => (THEMES.find((t) => t.custom && t.layout === 'strip3') || { id: DEFAULT_THEME }).id;
+
+  function fillTemplateForm(t) {
+    $('#tpl-subject').value = t.subject;
+    $('#tpl-body').value = t.body;
+    $('#tpl-photos').checked = Boolean(t.attachPhotos);
+  }
+  async function loadEmailTemplate() {
+    $('#tpl-status').textContent = '';
+    if (!server) return;
+    try {
+      savedTemplate = await (await fetch('/api/email/template')).json();
+      fillTemplateForm(savedTemplate);
+    } catch {}
+  }
+  async function saveEmailTemplate() {
+    const { template } = await postJSON('/api/email/template', templateFromForm(), 'PUT');
+    savedTemplate = template;
+    fillTemplateForm(template);
+  }
+  $('#tpl-save').addEventListener('click', async () => {
+    try {
+      await saveEmailTemplate();
+      $('#tpl-status').textContent = '✓ Template saved. Guests get it from now on.';
+    } catch (err) {
+      $('#tpl-status').textContent = `✗ ${err.message}`;
+    }
+  });
+  $('#tpl-reset').addEventListener('click', async () => {
+    try {
+      fillTemplateForm(await (await fetch('/api/email/template?default=1')).json());
+      $('#tpl-status').textContent = 'Default text restored. Tap “Save template” to keep it.';
+    } catch {}
   });
 
   // ---------- uploaded frames ----------

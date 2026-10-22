@@ -218,6 +218,18 @@
         <small class="hint" id="test-email-status" role="status"></small>
       </div>
       <div class="field">
+        <span>Email template <em>(sent when guests choose email)</em></span>
+        <input id="tpl-subject" maxlength="150" placeholder="Subject" aria-label="Email subject" />
+        <textarea id="tpl-body" rows="7" maxlength="5000" aria-label="Email message"></textarea>
+        <small class="hint">Write <b>{event}</b> for the event name and <b>{date}</b> for today’s date. The photostrip is always attached.</small>
+        <label class="check"><input type="checkbox" id="tpl-photos" /> Also attach the individual photos</label>
+        <div class="tpl-actions">
+          <button type="button" class="btn ghost small" id="tpl-save">Save template</button>
+          <button type="button" class="btn ghost small" id="tpl-reset">Reset to default</button>
+        </div>
+        <small class="hint" id="tpl-status" role="status"></small>
+      </div>
+      <div class="field">
         <span>Booth wall</span>
         <div class="wall-admin">
           <span class="hint" id="wall-admin-count"></span>

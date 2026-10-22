@@ -828,3 +828,23 @@ button.brand:focus-visible { outline: 3px solid var(--caramel); outline-offset: 
 .pin-pad button:hover { background: var(--brand-soft); }
 .pin-pad button:active { transform: scale(0.95); }
 .pin-pad button.pin-alt { font-family: var(--font-sans); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+/* ---------- settings: email template ---------- */
+.field textarea {
+  font: inherit;
+  font-weight: 400;
+  color: var(--ink);
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--cream);
+  font-size: 1rem;
+  line-height: 1.45;
+  resize: vertical;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.field textarea:focus { outline: none; border-color: var(--forest); box-shadow: 0 0 0 3px rgba(114, 124, 87, 0.2); }
+.tpl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#tpl-status, .field .check { font-weight: 400; }
+.field .hint { font-weight: 400; }
