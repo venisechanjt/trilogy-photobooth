@@ -644,6 +644,13 @@
     }, 1000);
   }
   $('#restart').addEventListener('click', () => go('home'));
+  // the logo in the top bar always leads home; check first if a guest is partway through a session
+  $('#brand-home').addEventListener('click', () => {
+    if (current === 'home') return;
+    const inProgress = ['camera', 'select', 'print'].includes(current) && state.shots.some(Boolean);
+    if (inProgress && !confirm('Go back to the home page? The photos from this session will be lost.')) return;
+    go('home');
+  });
 
   // ---------- home + booth wall ----------
   let wallTimer = null;
@@ -739,8 +746,33 @@
     refreshWallAdmin();
     renderFrameAdmin();
     $('#frame-upload-status').textContent = '';
+    $('#email-admin-state').textContent = !server
+      ? 'Needs the server running.'
+      : server.emailConfigured
+        ? 'Set up. Send yourself a test to check it.'
+        : 'Not set up yet. Run "npm run setup-email" in PowerShell, then restart the booth.';
+    $('#test-email-status').textContent = '';
     $('#settings').showModal();
   }
+
+  $('#test-email-btn').addEventListener('click', async () => {
+    const input = $('#test-email');
+    const status = $('#test-email-status');
+    if (!input.value.trim() || !input.checkValidity()) {
+      status.textContent = 'Enter the address to send the test to.';
+      return input.focus();
+    }
+    const btn = $('#test-email-btn');
+    btn.disabled = true;
+    status.textContent = 'Sending…';
+    try {
+      await postJSON('/api/email/test', { to: input.value.trim() });
+      status.textContent = `✓ Sent to ${input.value.trim()}. Check the inbox (and spam).`;
+    } catch (err) {
+      status.textContent = `✗ ${err.message}`;
+    }
+    btn.disabled = false;
+  });
 
   // ---------- uploaded frames ----------
   const LAYOUT_LABEL = { strip3: '3 cuts', strip4: '4 cuts', '4r': '4R' };

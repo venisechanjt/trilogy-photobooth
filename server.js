@@ -104,6 +104,13 @@ function mailer() {
   });
 }
 
+// Plain-language explanations for the usual Gmail/SMTP failures.
+function friendlyMailError(err) {
+  if (err.code === 'EAUTH') return 'The email login was rejected. Check SMTP_USER and the Gmail App Password in .env (run "npm run setup-email").';
+  if (['ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'EDNS'].includes(err.code)) return 'Couldn’t reach the email server. Check the internet connection.';
+  return String(err.message || err);
+}
+
 // ---------- routes ----------
 
 app.get('/api/status', async (req, res) => {
@@ -179,7 +186,28 @@ app.post('/api/email', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Email failed:', err);
-    res.status(500).json({ error: String(err.message || err) });
+    res.status(500).json({ error: friendlyMailError(err) });
+  }
+});
+
+// Sends a short test email so the operator can check the setup from the settings screen.
+app.post('/api/email/test', async (req, res) => {
+  const { to } = req.body;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to || '')) return res.status(400).json({ error: 'Please enter a valid email address' });
+  const transport = mailer();
+  if (!transport) return res.status(503).json({ error: 'Email isn’t set up yet. Run "npm run setup-email", then restart the booth.' });
+  try {
+    await transport.sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to,
+      subject: 'Photobooth test email ✔',
+      text: 'Email from your photobooth works. Guests will receive their photos like this.',
+    });
+    console.log(`Test email sent to ${to}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Test email failed:', err);
+    res.status(500).json({ error: friendlyMailError(err) });
   }
 });
 

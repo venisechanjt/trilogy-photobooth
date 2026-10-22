@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js --dry"
+    "dev": "node server.js --dry",
+    "setup-email": "node scripts/setup-email.js"
   },
   "engines": {
     "node": ">=18"

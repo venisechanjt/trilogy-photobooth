@@ -11,7 +11,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><img src="logo.png" alt="" class="brand-logo" /><span id="brand-name">trilogy</span></div>
+    <button type="button" class="brand" id="brand-home" title="Back to home" aria-label="Back to home"><img src="logo.png" alt="" class="brand-logo" /><span id="brand-name">trilogy</span></button>
     <ol class="steps" id="steps">
       <li data-step="layout">Layout</li>
       <li data-step="frame" class="only-4r">Frame</li>
@@ -208,6 +208,15 @@
       <label class="field"><span>Printer</span><select id="set-printer"><option value="">System default</option></select></label>
       <label class="field"><span>Max prints per session</span><input id="set-max" type="number" min="1" max="50" /></label>
       <label class="check"><input type="checkbox" id="set-mirror" /> Mirror photos (selfie view)</label>
+      <div class="field">
+        <span>Email</span>
+        <small class="hint" id="email-admin-state"></small>
+        <div class="email-test">
+          <input type="email" id="test-email" placeholder="Send a test to…" autocomplete="email" />
+          <button type="button" class="btn ghost small" id="test-email-btn">Send test</button>
+        </div>
+        <small class="hint" id="test-email-status" role="status"></small>
+      </div>
       <div class="field">
         <span>Booth wall</span>
         <div class="wall-admin">

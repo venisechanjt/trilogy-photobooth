@@ -795,3 +795,12 @@ body.on-home .steps { visibility: hidden; }
 .upload-btn { align-self: flex-start; cursor: pointer; }
 .upload-status { white-space: pre-line; font-weight: 400; }
 .theme-chip.custom .swatch { border-radius: 6px; }
+
+/* ---------- logo doubles as the home button ---------- */
+button.brand { background: none; border: 0; padding: 0; cursor: pointer; border-radius: 10px; }
+button.brand:focus-visible { outline: 3px solid var(--caramel); outline-offset: 4px; }
+
+/* ---------- settings: test email ---------- */
+.email-test { display: flex; gap: 8px; }
+.email-test input { flex: 1; min-width: 0; }
+#test-email-status, #email-admin-state { font-weight: 400; }

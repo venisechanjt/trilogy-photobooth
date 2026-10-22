@@ -57,7 +57,15 @@ Wall photos are saved in `output/wall/`.
 
 ## Email (digital copy)
 
-Fill in `SMTP_*` in `.env`. With Gmail, create an [App Password](https://myaccount.google.com/apppasswords) and use it as `SMTP_PASS`. The guest receives the framed photo plus their selected original shots.
+Run this once in the project folder and follow the prompts:
+
+```bash
+npm run setup-email
+```
+
+It asks for the Gmail address the photos are sent from and a Gmail **App Password**, sends you a test email, and saves the settings to `.env`. Restart the booth afterwards. To get an App Password: turn on [2-Step Verification](https://myaccount.google.com/signinoptions/twosv), then create one at [App Passwords](https://myaccount.google.com/apppasswords).
+
+To check email at any time, use ⚙️ → *Email* → **Send test**. Guests receive the framed photo plus their selected original shots.
 
 Every finished print is also saved to `output/`.
 
