@@ -361,7 +361,11 @@ async function renderFrame(canvas, geometryId, themeId, photos = [], opts = {}) 
   const theme = THEMES.find((t) => t.id === themeId) || THEMES[0];
   const themeFooter = !base.fixed && theme.footer && theme.footer[base.layout === '4r' ? '4r' : 'strip'];
   const size = themeFooter ? { ...base.size, footer: themeFooter } : base.size;
-  const geo = { ...base, size, slots: base.build(first ? first.width / first.height : photoAspect, size) };
+  // uploaded frames bring their own photo windows (stored as fractions of the frame size)
+  const slots = theme.slots
+    ? theme.slots.map((r) => ({ x: r.x * size.W, y: r.y * size.H, w: r.w * size.W, h: r.h * size.H }))
+    : base.build(first ? first.width / first.height : photoAspect, size);
+  const geo = { ...base, size, slots };
   const { W, H, footer } = geo.size;
   const scale = opts.scale || 1;
   canvas.width = Math.round(W * scale);
@@ -455,4 +459,121 @@ function fixedSlotAspect(geometryId) {
   return slot.w / slot.h;
 }
 
-window.Frames = { DPI, GEOMETRIES, LAYOUTS, THEMES, renderFrame, renderPrintSheet, setPhotoAspect, fixedSlotAspect };
+// ---------- uploaded frames ----------
+
+// Turns a saved frame (see /api/frames) into a theme. The artwork is drawn under the photos when its windows
+// are solid (e.g. white boxes), or over the photos when the windows are see-through.
+function addCustomFrame(meta, image) {
+  removeCustomFrame(meta.id);
+  THEMES.unshift({
+    id: `custom-${meta.id}`,
+    customId: meta.id,
+    custom: true,
+    name: meta.name,
+    url: meta.url,
+    layout: meta.layout,
+    count: meta.slots.length,
+    slots: meta.slots,
+    swatch: `#fff url('${meta.url}') center / cover`,
+    text: '#000',
+    accent: '#000',
+    radius: 0,
+    caption: false,
+    background(ctx, W, H) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, W, H);
+      if (!meta.windowsTransparent) ctx.drawImage(image, 0, 0, W, H);
+    },
+    foreground(ctx, W, H) {
+      if (meta.windowsTransparent) ctx.drawImage(image, 0, 0, W, H);
+    },
+  });
+}
+
+function removeCustomFrame(id) {
+  const i = THEMES.findIndex((t) => t.customId === id);
+  if (i >= 0) THEMES.splice(i, 1);
+}
+
+/*
+ * Finds the photo windows in a frame image: rectangles that are see-through (PNG) or white.
+ * Returns { slots, windowsTransparent, layout, width, height } or throws an Error with a friendly message.
+ */
+function detectFrameWindows(img) {
+  const aspect = img.naturalWidth / img.naturalHeight;
+  const isStrip = aspect < 0.45;
+  const is4R = aspect > 0.55 && aspect < 0.8;
+  if (!isStrip && !is4R) throw new Error('The frame should be a tall 2×6" strip or a portrait 4×6" (4R) image.');
+  const maxSide = 2000;
+  const k = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  const W = Math.round(img.naturalWidth * k);
+  const H = Math.round(img.naturalHeight * k);
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, W, H);
+  const data = ctx.getImageData(0, 0, W, H).data;
+
+  let clear = 0;
+  for (let i = 3; i < data.length; i += 4) if (data[i] < 20) clear++;
+  const windowsTransparent = clear > W * H * 0.02;
+  const mask = new Uint8Array(W * H);
+  for (let p = 0, i = 0; p < W * H; p++, i += 4) {
+    mask[p] = windowsTransparent ? data[i + 3] < 20 : data[i + 3] > 200 && data[i] > 235 && data[i + 1] > 235 && data[i + 2] > 235;
+  }
+
+  // connected areas of window pixels; keep the big, rectangular ones
+  const seen = new Uint8Array(W * H);
+  const stack = new Int32Array(W * H);
+  const rects = [];
+  for (let start = 0; start < W * H; start++) {
+    if (!mask[start] || seen[start]) continue;
+    let top = 0;
+    stack[top++] = start;
+    seen[start] = 1;
+    let n = 0, x0 = W, y0 = H, x1 = 0, y1 = 0;
+    while (top) {
+      const p = stack[--top];
+      const x = p % W;
+      const y = (p - x) / W;
+      n++;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+      if (x > 0 && mask[p - 1] && !seen[p - 1]) { seen[p - 1] = 1; stack[top++] = p - 1; }
+      if (x < W - 1 && mask[p + 1] && !seen[p + 1]) { seen[p + 1] = 1; stack[top++] = p + 1; }
+      if (y > 0 && mask[p - W] && !seen[p - W]) { seen[p - W] = 1; stack[top++] = p - W; }
+      if (y < H - 1 && mask[p + W] && !seen[p + W]) { seen[p + W] = 1; stack[top++] = p + W; }
+    }
+    const bw = x1 - x0 + 1;
+    const bh = y1 - y0 + 1;
+    if (n > W * H * 0.015 && n / (bw * bh) > 0.85) {
+      // grow by 1px so the photo also covers the soft (anti-aliased) edge of the window
+      const gx = Math.max(0, x0 - 1);
+      const gy = Math.max(0, y0 - 1);
+      rects.push({ x: gx / W, y: gy / H, w: (Math.min(W, x1 + 2) - gx) / W, h: (Math.min(H, y1 + 2) - gy) / H });
+    }
+  }
+  if (!rects.length) {
+    throw new Error('Couldn’t find the photo windows. Make them white boxes on a coloured frame, or see-through areas in a PNG.');
+  }
+  // reading order: top to bottom, then left to right
+  rects.sort((a, b) => (Math.abs(a.y - b.y) < 0.02 ? a.x - b.x : a.y - b.y));
+
+  const n = rects.length;
+  let layout;
+  if (isStrip) {
+    if (n !== 3 && n !== 4) throw new Error(`Found ${n} photo windows. Strip frames need 3 or 4.`);
+    layout = n === 3 ? 'strip3' : 'strip4';
+  } else {
+    if (!LAYOUTS['4r'].geometries.some((g) => GEOMETRIES[g].count === n)) {
+      throw new Error(`Found ${n} photo windows. 4R frames need 1, 2, 3, 4, 6 or 8.`);
+    }
+    layout = '4r';
+  }
+  return { slots: rects, windowsTransparent, layout, width: img.naturalWidth, height: img.naturalHeight };
+}
+
+window.Frames = { DPI, GEOMETRIES, LAYOUTS, THEMES, renderFrame, renderPrintSheet, setPhotoAspect, fixedSlotAspect, addCustomFrame, removeCustomFrame, detectFrameWindows };

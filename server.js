@@ -23,6 +23,8 @@ const OUTPUT_DIR = path.resolve(process.env.OUTPUT_DIR || path.join(__dirname, '
 // Photos guests chose to share on the booth wall (delete files here to remove them from the wall)
 const WALL_DIR = path.join(OUTPUT_DIR, 'wall');
 const WALL_LIMIT = Number(process.env.WALL_LIMIT) || 300;
+// Frame designs uploaded from the settings screen (image + a .json with the photo windows)
+const FRAMES_DIR = path.resolve(process.env.FRAMES_DIR || path.join(__dirname, 'custom-frames'));
 
 fs.mkdirSync(WALL_DIR, { recursive: true });
 
@@ -30,6 +32,7 @@ const app = express();
 app.use(express.json({ limit: '60mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/wall', express.static(WALL_DIR, { maxAge: '1d' }));
+app.use('/custom-frames', express.static(FRAMES_DIR));
 
 // ---------- helpers ----------
 
@@ -223,6 +226,69 @@ app.post('/api/wall', (req, res) => {
   } catch (err) {
     res.status(400).json({ error: String(err.message || err) });
   }
+});
+
+// ---------- custom frames ----------
+
+const LAYOUT_IDS = ['strip3', 'strip4', '4r'];
+
+function readFrames() {
+  if (!fs.existsSync(FRAMES_DIR)) return [];
+  return fs
+    .readdirSync(FRAMES_DIR)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => {
+      try {
+        return JSON.parse(fs.readFileSync(path.join(FRAMES_DIR, f), 'utf8'));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+
+app.get('/api/frames', (req, res) => res.json({ frames: readFrames() }));
+
+app.post('/api/frames', (req, res) => {
+  try {
+    const { name, image, layout, slots, windowsTransparent, width, height } = req.body;
+    if (!LAYOUT_IDS.includes(layout)) throw new Error('Unknown layout');
+    const valid = (n) => typeof n === 'number' && n >= 0 && n <= 1;
+    if (!Array.isArray(slots) || !slots.length || slots.length > 8 || !slots.every((s) => [s.x, s.y, s.w, s.h].every(valid))) {
+      throw new Error('Invalid photo windows');
+    }
+    const { buffer, ext } = dataUrlToBuffer(image);
+    const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    fs.mkdirSync(FRAMES_DIR, { recursive: true });
+    fs.writeFileSync(path.join(FRAMES_DIR, `${id}.${ext}`), buffer);
+    const meta = {
+      id,
+      name: String(name || 'My frame').slice(0, 40),
+      layout,
+      slots: slots.map(({ x, y, w, h }) => ({ x, y, w, h })),
+      windowsTransparent: Boolean(windowsTransparent),
+      width: Number(width) || null,
+      height: Number(height) || null,
+      url: `/custom-frames/${id}.${ext}`,
+      createdAt: Date.now(),
+    };
+    fs.writeFileSync(path.join(FRAMES_DIR, `${id}.json`), JSON.stringify(meta, null, 2));
+    console.log(`Frame added: ${meta.name} (${layout}, ${slots.length} photos)`);
+    res.json({ ok: true, frame: meta });
+  } catch (err) {
+    res.status(400).json({ error: String(err.message || err) });
+  }
+});
+
+app.delete('/api/frames/:id', (req, res) => {
+  const id = req.params.id;
+  if (!/^[a-z0-9]+$/.test(id)) return res.status(400).json({ error: 'Invalid id' });
+  if (!fs.existsSync(FRAMES_DIR)) return res.json({ ok: true });
+  fs.readdirSync(FRAMES_DIR)
+    .filter((f) => f.startsWith(`${id}.`))
+    .forEach((f) => fs.unlinkSync(path.join(FRAMES_DIR, f)));
+  res.json({ ok: true });
 });
 
 // Clears the wall by moving its photos into output/wall-archive/<date-time>/, so nothing is lost.

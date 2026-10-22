@@ -28,7 +28,7 @@
   const state = {
     layout: null, // 'strip3' | 'strip4' | '4r'
     geometry: null, // key of GEOMETRIES
-    theme: THEMES[0].id,
+    theme: 'trilogy-red',
     shots: Array(TOTAL_SHOTS).fill(null), // canvases
     selection: [], // indexes into shots, in slot order
     copies: 1,
@@ -74,7 +74,7 @@
   function resetSession() {
     state.layout = null;
     state.geometry = null;
-    state.theme = THEMES[0].id;
+    state.theme = DEFAULT_THEME;
     state.shots = Array(TOTAL_SHOTS).fill(null);
     state.selection = [];
     state.copies = 1;
@@ -105,8 +105,11 @@
   function chooseLayout(id) {
     state.layout = id;
     state.geometry = LAYOUTS[id].geometries[0];
+    // start with the booth's own uploaded frame for this layout, if there is one
+    const custom = THEMES.find((t) => t.custom && t.layout === id);
+    state.theme = custom ? custom.id : DEFAULT_THEME;
     if (id === '4r') {
-      state.geometry = '4r-quad';
+      state.geometry = custom ? geometryFor(custom.count) : '4r-quad';
       go('frame');
     } else {
       go('camera');
@@ -114,15 +117,34 @@
   }
 
   // ---------- theme swatches (shared by frame + select screens) ----------
-  function buildThemeList(container, onPick) {
+  const DEFAULT_THEME = 'trilogy-red';
+  const geometryFor = (count) => LAYOUTS['4r'].geometries.find((g) => GEOMETRIES[g].count === count);
+
+  // Uploaded frames only fit the layout (and number of photos) they were made for.
+  // On the 4R frame screen every 4R upload is offered; picking one sets the number of photos.
+  function fits(t, anyCount = false) {
+    if (!t.custom) return true;
+    if (t.layout !== state.layout) return false;
+    return anyCount || t.count === need();
+  }
+  function ensureTheme() {
+    const t = THEMES.find((x) => x.id === state.theme);
+    if (!t || !fits(t)) state.theme = DEFAULT_THEME;
+  }
+
+  function buildThemeList(container, onPick, anyCount = false) {
     container.innerHTML = '';
-    THEMES.forEach((t) => {
+    THEMES.filter((t) => fits(t, anyCount)).forEach((t) => {
       const b = document.createElement('button');
-      b.className = 'theme-chip';
+      b.className = 'theme-chip' + (t.custom ? ' custom' : '');
       b.dataset.theme = t.id;
       b.innerHTML = `<span class="swatch" style="background:${t.swatch}"></span>${t.name}`;
       b.addEventListener('click', () => {
         state.theme = t.id;
+        if (t.custom && t.layout === '4r') {
+          state.geometry = geometryFor(t.count);
+          state.selection = state.selection.slice(0, need());
+        }
         onPick();
       });
       container.appendChild(b);
@@ -146,11 +168,12 @@
       b.addEventListener('click', () => {
         state.geometry = id;
         state.selection = state.selection.slice(0, need());
+        ensureTheme();
         renderFrameScreen();
       });
       list.appendChild(b);
     });
-    buildThemeList($('#frame-theme-list'), renderFrameScreen);
+    buildThemeList($('#frame-theme-list'), renderFrameScreen, true);
     markTheme($('#frame-theme-list'));
     renderFrame($('#frame-preview'), state.geometry, state.theme, selectedPhotos(), { ...frameOpts(), scale: 0.5 });
   }
@@ -401,6 +424,7 @@
   }
 
   function renderSelectScreen() {
+    ensureTheme();
     $('#need-count').textContent = need();
     const grid = $('#pick-grid');
     grid.innerHTML = '';
@@ -713,8 +737,112 @@
     sel.value = settings.printer;
     resetClearWall();
     refreshWallAdmin();
+    renderFrameAdmin();
+    $('#frame-upload-status').textContent = '';
     $('#settings').showModal();
   }
+
+  // ---------- uploaded frames ----------
+  const LAYOUT_LABEL = { strip3: '3 cuts', strip4: '4 cuts', '4r': '4R' };
+  const loadImg = (src) =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('That file isn’t an image the browser can open.'));
+      img.src = src;
+    });
+  const readAsDataUrl = (file) =>
+    new Promise((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.readAsDataURL(file);
+    });
+
+  async function loadCustomFrames() {
+    if (!server) return;
+    try {
+      const { frames } = await (await fetch('/api/frames')).json();
+      THEMES.filter((t) => t.custom).forEach((t) => Frames.removeCustomFrame(t.customId));
+      const images = await Promise.all(frames.map((f) => loadImg(f.url).catch(() => null)));
+      // added newest-first at the front of the list, so add in reverse to keep upload order
+      for (let i = frames.length - 1; i >= 0; i--) if (images[i]) Frames.addCustomFrame(frames[i], images[i]);
+    } catch {}
+  }
+
+  function renderFrameAdmin() {
+    const list = $('#frame-admin-list');
+    const frames = THEMES.filter((t) => t.custom);
+    list.innerHTML = frames.length ? '' : '<span class="hint">No frames uploaded yet.</span>';
+    frames.forEach((t) => {
+      const row = document.createElement('div');
+      row.className = 'frame-row';
+      row.innerHTML = `<img src="${t.url}" alt=""><span><b></b><small>${LAYOUT_LABEL[t.layout]} · ${t.count} photo${t.count > 1 ? 's' : ''}</small></span>`;
+      row.querySelector('b').textContent = t.name;
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'btn ghost small danger';
+      del.textContent = 'Remove';
+      let armed = null;
+      del.addEventListener('click', async () => {
+        if (!armed) {
+          del.classList.add('armed');
+          del.textContent = 'Tap again';
+          armed = setTimeout(() => {
+            armed = null;
+            del.classList.remove('armed');
+            del.textContent = 'Remove';
+          }, 4000);
+          return;
+        }
+        clearTimeout(armed);
+        del.disabled = true;
+        await fetch(`/api/frames/${t.customId}`, { method: 'DELETE' }).catch(() => {});
+        Frames.removeCustomFrame(t.customId);
+        renderFrameAdmin();
+      });
+      row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
+
+  $('#frame-upload').addEventListener('change', async (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (!files.length) return;
+    const status = $('#frame-upload-status');
+    if (!server) {
+      status.textContent = 'Uploading frames needs the server running (npm start).';
+      return;
+    }
+    const lines = [];
+    for (const file of files) {
+      const name = file.name.replace(/\.[^.]+$/, '');
+      status.textContent = `Reading ${file.name}…`;
+      try {
+        const url = URL.createObjectURL(file);
+        const img = await loadImg(url);
+        const found = Frames.detectFrameWindows(img);
+        let image;
+        if (/^image\/(png|jpeg)$/.test(file.type)) {
+          image = await readAsDataUrl(file);
+        } else {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth;
+          c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          image = c.toDataURL('image/png');
+        }
+        URL.revokeObjectURL(url);
+        await postJSON('/api/frames', { name, image, ...found });
+        lines.push(`✓ ${name}: ${LAYOUT_LABEL[found.layout]}, ${found.slots.length} photo windows found`);
+      } catch (err) {
+        lines.push(`✗ ${file.name}: ${err.message}`);
+      }
+    }
+    await loadCustomFrames();
+    renderFrameAdmin();
+    status.textContent = lines.join('\n');
+  });
 
   // ---------- clear booth wall (two taps; photos are archived, not deleted) ----------
   let wallAdminCount = 0;
@@ -792,6 +920,7 @@
     } catch {}
     await document.fonts.ready.catch(() => {});
     await Promise.all(['800 40px Archivo', '500 20px "Roboto Condensed"', 'italic 700 40px "Cormorant Garamond"', 'italic 600 40px "Cormorant Garamond"'].map((f) => document.fonts.load(f))).catch(() => {});
+    await loadCustomFrames();
     buildLayoutCards();
     go('home');
   }

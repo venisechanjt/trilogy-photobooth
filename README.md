@@ -61,35 +61,23 @@ Fill in `SMTP_*` in `.env`. With Gmail, create an [App Password](https://myaccou
 
 Every finished print is also saved to `output/`.
 
-## Adding your own templates
+## Adding your own frames
 
-Frames are defined in `public/frames.js`:
+**Upload them from the booth:** ⚙️ → *Your frames* → **Upload frames**. You can pick several files at once.
+
+* **Shape:** a tall 2×6" strip (for example 600×1800 or 696×2000) with **3 or 4** photo windows, or a portrait 4×6" / 4R (for example 1200×1800) with **1, 2, 3, 4, 6 or 8** windows.
+* **Photo windows:** plain **white boxes** on a coloured frame (like the Trilogy template), or **see-through** areas in a PNG. In a see-through PNG, anything drawn over the windows (stickers, doodles) stays on top of the photos.
+* **What the booth does:** it finds the windows, works out whether the frame is 3 cuts, 4 cuts or 4R, and lists it first among the frame styles for that layout. The first uploaded frame for a layout is preselected. Uploaded frames keep their own text, so the booth doesn't add the event name.
+* **Removing a frame:** tap *Remove* next to it, then tap again to confirm.
+* **Where they're kept:** `custom-frames/` in the project folder. Copy that folder to back them up or to move them to another laptop.
+
+### Frames made in code
+
+The built-in styles are in `public/frames.js`:
 
 * **`GEOMETRIES`** set where the photo windows go and how many photos a frame holds. 4R frames are listed in `LAYOUTS['4r'].geometries`.
-* **`THEMES`** set the look: background, borders, decorations, caption colours.
+* **`THEMES`** set the look: background, borders, decorations and caption.
 
-To use artwork you designed in Canva or Photoshop:
-
-1. Export a PNG at **600×1800** (strip; or design on the 696×2000 template and scale it to 600×1800) or **1200×1800** (4R). Leave the photo windows transparent.
-2. Save it in `public/frames/`.
-3. Add a theme:
-
-```js
-{
-  id: 'wedding',
-  name: 'Our Wedding',
-  swatch: '#f4e7d7',
-  text: '#5a3e2b', accent: '#a07850',
-  caption: false,                       // your artwork already has text
-  background(ctx, W, H) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); },
-  overlay: {
-    strip3: 'frames/wedding-3cut.png',
-    strip4: 'frames/wedding-4cut.png',
-    '4r-quad': 'frames/wedding-4r-grid.png',
-  },
-},
-```
-
-**3 Cuts and 4 Cuts follow the standard Trilogy strip template** (`STRIP_TEMPLATE` in `public/frames.js`, measured on the 696×2000 template artwork): photo windows 80px from the left and 542px wide, starting 84px from the top, 55px apart, with the last window ending 1608px down. Every strip design uses these same windows, so PNG artwork made on that template lines up. Photos are cropped at the sides to fill the windows, and the camera screen shows a dashed guide of what will be kept.
+**3 Cuts and 4 Cuts follow the standard Trilogy strip template** (`STRIP_TEMPLATE` in `public/frames.js`, measured on the 696×2000 template artwork): photo windows 80px from the left and 542px wide, starting 84px from the top, 55px apart, with the last window ending 1608px down. Photos are cropped at the sides to fill the windows, and the camera screen shows a dashed guide of what will be kept.
 
 4R photo windows take the shape of the camera's pictures, so 4R photos are never cropped.
