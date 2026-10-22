@@ -804,3 +804,27 @@ button.brand:focus-visible { outline: 3px solid var(--caramel); outline-offset: 
 .email-test { display: flex; gap: 8px; }
 .email-test input { flex: 1; min-width: 0; }
 #test-email-status, #email-admin-state { font-weight: 400; }
+
+/* ---------- settings PIN pad ---------- */
+.pin-dialog { width: min(340px, calc(100vw - 32px)); padding: 26px 24px 24px; text-align: center; }
+.pin-dialog h2 { margin: 0; }
+.pin-dialog .hint { margin: 4px 0 18px; }
+.pin-dots { display: flex; justify-content: center; gap: 14px; }
+.pin-dots span { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--forest); transition: background 0.1s; }
+.pin-dots span.on { background: var(--forest); }
+.pin-dialog .status { min-height: 1.4em; margin: 12px 0 8px; }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pin-pad button {
+  height: 60px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--forest);
+  font-family: var(--font-sans);
+  font-size: 1.6rem;
+  font-weight: 600;
+  transition: background 0.1s, transform 0.08s;
+}
+.pin-pad button:hover { background: var(--brand-soft); }
+.pin-pad button:active { transform: scale(0.95); }
+.pin-pad button.pin-alt { font-family: var(--font-sans); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }

@@ -239,6 +239,20 @@
     </form>
   </dialog>
 
+  <!-- PIN pad that unlocks the settings -->
+  <dialog id="pin-dialog" class="pin-dialog" aria-labelledby="pin-title">
+    <h2 id="pin-title">Enter PIN</h2>
+    <p class="hint">The booth settings are locked.</p>
+    <div class="pin-dots" id="pin-dots" aria-hidden="true"></div>
+    <p class="status error" id="pin-status" role="status"></p>
+    <div class="pin-pad">
+      <button type="button" data-key="1">1</button><button type="button" data-key="2">2</button><button type="button" data-key="3">3</button>
+      <button type="button" data-key="4">4</button><button type="button" data-key="5">5</button><button type="button" data-key="6">6</button>
+      <button type="button" data-key="7">7</button><button type="button" data-key="8">8</button><button type="button" data-key="9">9</button>
+      <button type="button" data-key="cancel" class="pin-alt">Cancel</button><button type="button" data-key="0">0</button><button type="button" data-key="back" class="pin-alt" aria-label="Delete">⌫</button>
+    </div>
+  </dialog>
+
   <!-- Booth wall photo viewer -->
   <dialog id="lightbox" class="lightbox">
     <img id="lightbox-img" alt="Photo from the booth wall" />

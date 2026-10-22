@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execFile } = require('child_process');
+const crypto = require('crypto');
 const { promisify } = require('util');
 const PDFDocument = require('pdfkit');
 const nodemailer = require('nodemailer');
@@ -111,6 +112,40 @@ function friendlyMailError(err) {
   return String(err.message || err);
 }
 
+// ---------- settings PIN ----------
+// Set ADMIN_PIN in .env (npm run set-pin). Without it the settings are unlocked.
+const ADMIN_PIN = String(process.env.ADMIN_PIN || '').trim();
+let failedPins = 0;
+let lockedUntil = 0;
+
+function pinMatches(pin) {
+  const a = crypto.createHash('sha256').update(String(pin || '')).digest();
+  const b = crypto.createHash('sha256').update(ADMIN_PIN).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+function checkPin(pin) {
+  if (!ADMIN_PIN) return { ok: true };
+  if (Date.now() < lockedUntil) return { ok: false, status: 429, error: 'Too many wrong tries. Wait a minute and try again.' };
+  if (pinMatches(pin)) {
+    failedPins = 0;
+    return { ok: true };
+  }
+  failedPins++;
+  if (failedPins >= 5) {
+    failedPins = 0;
+    lockedUntil = Date.now() + 60 * 1000;
+  }
+  return { ok: false, status: 401, error: 'Wrong PIN' };
+}
+
+// Guards the settings actions; the page sends the PIN it was unlocked with.
+function requireAdmin(req, res, next) {
+  const result = checkPin(req.get('x-admin-pin'));
+  if (result.ok) return next();
+  res.status(result.status).json({ error: result.error });
+}
+
 // ---------- routes ----------
 
 app.get('/api/status', async (req, res) => {
@@ -118,6 +153,8 @@ app.get('/api/status', async (req, res) => {
     printMode: PRINT_MODE,
     platform: process.platform,
     emailConfigured: Boolean(mailer()),
+    pinRequired: Boolean(ADMIN_PIN),
+    pinLength: ADMIN_PIN.length || null,
     maxCopies: MAX_COPIES,
     defaultPrinter: DEFAULT_PRINTER || null,
   });
@@ -191,7 +228,13 @@ app.post('/api/email', async (req, res) => {
 });
 
 // Sends a short test email so the operator can check the setup from the settings screen.
-app.post('/api/email/test', async (req, res) => {
+app.post('/api/admin/unlock', (req, res) => {
+  const result = checkPin(req.body.pin);
+  if (result.ok) return res.json({ ok: true });
+  res.status(result.status).json({ error: result.error });
+});
+
+app.post('/api/email/test', requireAdmin, async (req, res) => {
   const { to } = req.body;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to || '')) return res.status(400).json({ error: 'Please enter a valid email address' });
   const transport = mailer();
@@ -278,7 +321,7 @@ function readFrames() {
 
 app.get('/api/frames', (req, res) => res.json({ frames: readFrames() }));
 
-app.post('/api/frames', (req, res) => {
+app.post('/api/frames', requireAdmin, (req, res) => {
   try {
     const { name, image, layout, slots, windowsTransparent, width, height } = req.body;
     if (!LAYOUT_IDS.includes(layout)) throw new Error('Unknown layout');
@@ -309,7 +352,7 @@ app.post('/api/frames', (req, res) => {
   }
 });
 
-app.delete('/api/frames/:id', (req, res) => {
+app.delete('/api/frames/:id', requireAdmin, (req, res) => {
   const id = req.params.id;
   if (!/^[a-z0-9]+$/.test(id)) return res.status(400).json({ error: 'Invalid id' });
   if (!fs.existsSync(FRAMES_DIR)) return res.json({ ok: true });
@@ -320,7 +363,7 @@ app.delete('/api/frames/:id', (req, res) => {
 });
 
 // Clears the wall by moving its photos into output/wall-archive/<date-time>/, so nothing is lost.
-app.post('/api/wall/clear', (req, res) => {
+app.post('/api/wall/clear', requireAdmin, (req, res) => {
   try {
     fs.mkdirSync(WALL_DIR, { recursive: true });
     const files = fs.readdirSync(WALL_DIR).filter((f) => f.endsWith('.jpg'));
@@ -342,5 +385,6 @@ app.listen(PORT, () => {
   console.log(`   Print mode: ${PRINT_MODE}${PRINT_MODE === 'dry' ? ' (PDFs saved, nothing printed)' : ''}`);
   console.log(`   Email: ${mailer() ? 'configured' : 'not configured (set SMTP_* in .env)'}`);
   console.log(`   Output folder: ${OUTPUT_DIR}`);
+  console.log(`   Settings PIN: ${ADMIN_PIN ? 'on' : 'off (run "npm run set-pin" to add one)'}`);
   if (os.platform() !== 'win32') console.log(`   CUPS media: ${PRINT_MEDIA}`);
 });

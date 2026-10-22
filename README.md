@@ -29,6 +29,8 @@ open -a "Google Chrome" --args --kiosk http://localhost:3000
 
 Press ⚙️ (top right) to set the event name printed on the frames, the printer, the maximum prints, and whether photos are mirrored.
 
+**Lock the settings with a PIN:** run `npm run set-pin`, type the PIN (4–8 digits) and restart the booth. ⚙️ then asks for the PIN, and locks again whenever the settings close. After 5 wrong tries it waits a minute. The PIN is stored only in `.env` on the laptop. Run `npm run set-pin` again to change it, or leave it empty to remove it.
+
 On the camera screen, guests choose:
 * **Shooting mode:** **Auto** takes all 8 photos in a row. **Manual** takes one photo each time the guest taps *Take photo* (the space bar or a presentation clicker also works).
 * **Timer:** 3s or 5s before each photo, plus 0s in Manual mode.

@@ -2,13 +2,9 @@
  * Sets up email for the photobooth: asks for a Gmail address and App Password,
  * saves them to .env and sends a test email.   Run with:  npm run setup-email
  */
-const fs = require('fs');
-const path = require('path');
 const readline = require('readline');
 const nodemailer = require('nodemailer');
-
-const ENV_PATH = path.join(__dirname, '..', '.env');
-const EXAMPLE_PATH = path.join(__dirname, '..', '.env.example');
+const { updateEnvFile } = require('./env-file');
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const lines = rl[Symbol.asyncIterator]();
@@ -27,17 +23,6 @@ async function ask(question, secret = false) {
   return value.trim();
 }
 const askSecret = (question) => ask(question, true);
-
-// Replaces KEY=... lines in the .env text, adding any keys that are missing.
-function setEnv(text, values) {
-  let out = text;
-  for (const [key, value] of Object.entries(values)) {
-    const line = `${key}=${value}`;
-    const re = new RegExp(`^${key}=.*$`, 'm');
-    out = re.test(out) ? out.replace(re, line) : `${out.replace(/\s*$/, '')}\n${line}\n`;
-  }
-  return out;
-}
 
 async function main() {
   console.log('\n📧  Photobooth email setup\n');
@@ -69,18 +54,14 @@ async function main() {
     throw new Error(`Couldn’t send the test email: ${err.message}`);
   }
 
-  const base = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : fs.readFileSync(EXAMPLE_PATH, 'utf8');
-  fs.writeFileSync(
-    ENV_PATH,
-    setEnv(base, {
-      SMTP_HOST: 'smtp.gmail.com',
-      SMTP_PORT: '587',
-      SMTP_SECURE: 'false',
-      SMTP_USER: user,
-      SMTP_PASS: pass,
-      MAIL_FROM: `"${name} <${user}>"`,
-    })
-  );
+  updateEnvFile({
+    SMTP_HOST: 'smtp.gmail.com',
+    SMTP_PORT: '587',
+    SMTP_SECURE: 'false',
+    SMTP_USER: user,
+    SMTP_PASS: pass,
+    MAIL_FROM: `"${name} <${user}>"`,
+  });
   console.log(`\n✅  Done! A test email was sent to ${user} (check spam if you don't see it).`);
   console.log('    Settings saved to .env. Restart the booth (Ctrl + C, then npm run dev) to use them.\n');
 }

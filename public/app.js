@@ -505,8 +505,11 @@
     updateQty();
   });
 
+  // headers for settings actions: the server checks the PIN the settings were unlocked with
+  const adminHeaders = () => (adminPin ? { 'x-admin-pin': adminPin } : {});
+
   async function postJSON(url, body) {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...adminHeaders() }, body: JSON.stringify(body) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     return data;
@@ -828,7 +831,7 @@
         }
         clearTimeout(armed);
         del.disabled = true;
-        await fetch(`/api/frames/${t.customId}`, { method: 'DELETE' }).catch(() => {});
+        await fetch(`/api/frames/${t.customId}`, { method: 'DELETE', headers: adminHeaders() }).catch(() => {});
         Frames.removeCustomFrame(t.customId);
         renderFrameAdmin();
       });
@@ -926,7 +929,55 @@
     }
     refreshWallAdmin();
   });
-  $('#settings-btn').addEventListener('click', openSettings);
+  $('#settings-btn').addEventListener('click', () => (server?.pinRequired && adminPin === null ? openPinPad() : openSettings()));
+  // lock again whenever the settings close
+  $('#settings').addEventListener('close', () => (adminPin = null));
+
+  // ---------- settings PIN pad ----------
+  let adminPin = null;
+  let pinEntry = '';
+  let pinBusy = false;
+  function renderPinDots() {
+    const len = server?.pinLength || 4;
+    $('#pin-dots').innerHTML = Array.from({ length: len }, (_, i) => `<span class="${i < pinEntry.length ? 'on' : ''}"></span>`).join('');
+  }
+  function openPinPad() {
+    pinEntry = '';
+    $('#pin-status').textContent = '';
+    renderPinDots();
+    $('#pin-dialog').showModal();
+  }
+  async function pinKey(key) {
+    if (pinBusy) return;
+    if (key === 'cancel') return $('#pin-dialog').close();
+    if (key === 'back') pinEntry = pinEntry.slice(0, -1);
+    else if (/^\d$/.test(key) && pinEntry.length < (server?.pinLength || 8)) pinEntry += key;
+    renderPinDots();
+    if (pinEntry.length !== server?.pinLength) return;
+    pinBusy = true;
+    try {
+      await postJSON('/api/admin/unlock', { pin: pinEntry });
+      adminPin = pinEntry;
+      $('#pin-dialog').close();
+      openSettings();
+    } catch (err) {
+      $('#pin-status').textContent = err.message;
+      const dots = $('#pin-dots');
+      dots.classList.remove('shake');
+      void dots.offsetWidth;
+      dots.classList.add('shake');
+      pinEntry = '';
+      renderPinDots();
+    }
+    pinBusy = false;
+  }
+  document.querySelectorAll('#pin-dialog [data-key]').forEach((b) => b.addEventListener('click', () => pinKey(b.dataset.key)));
+  $('#pin-dialog').addEventListener('keydown', (e) => {
+    if (/^\d$/.test(e.key)) pinKey(e.key);
+    else if (e.key === 'Backspace') pinKey('back');
+    else return;
+    e.preventDefault();
+  });
   $('#settings-save').addEventListener('click', () => {
     settings.eventName = $('#set-event').value.trim() || DEFAULT_SETTINGS.eventName;
     settings.printer = $('#set-printer').value;
