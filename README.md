@@ -67,7 +67,7 @@ Frames are defined in `public/frames.js`:
 
 To use artwork you designed in Canva or Photoshop:
 
-1. Export a PNG at **600×1800** (strip) or **1200×1800** (4R). Leave the photo windows transparent and line them up with the photo windows the app draws for your camera.
+1. Export a PNG at **600×1800** (strip; or design on the 696×2000 template and scale it to 600×1800) or **1200×1800** (4R). Leave the photo windows transparent.
 2. Save it in `public/frames/`.
 3. Add a theme:
 
@@ -87,4 +87,6 @@ To use artwork you designed in Canva or Photoshop:
 },
 ```
 
-Photos are never cropped: each frame's photo windows take the shape of the camera's pictures (for example 16:9 on most laptop webcams). Because of that, PNG overlay artwork only lines up for the camera shape it was designed for. Frames drawn in code (like *Trilogy Red*) adjust automatically.
+**3 Cuts and 4 Cuts follow the standard Trilogy strip template** (`STRIP_TEMPLATE` in `public/frames.js`, measured on the 696×2000 template artwork): photo windows 80px from the left and 542px wide, starting 84px from the top, 55px apart, with the last window ending 1608px down. Every strip design uses these same windows, so PNG artwork made on that template lines up. Photos are cropped at the sides to fill the windows, and the camera screen shows a dashed guide of what will be kept.
+
+4R photo windows take the shape of the camera's pictures, so 4R photos are never cropped.

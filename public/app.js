@@ -208,7 +208,7 @@
     el.hidden = false;
   }
 
-  // photos are used uncropped, so frames adapt to the camera's shape
+  // 4R windows adapt to the camera's shape; strips use the fixed template windows
   video.addEventListener('loadedmetadata', () => {
     const aspect = video.videoWidth / video.videoHeight;
     $('#viewfinder').style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
@@ -216,7 +216,21 @@
     Frames.setPhotoAspect(aspect);
     settings.photoAspect = aspect;
     saveSettings();
+    positionGuide();
   });
+
+  // Dashed box showing the part of the picture that fits the strip template's photo windows.
+  function positionGuide() {
+    const guide = $('#guide');
+    const slotAspect = state.geometry && Frames.fixedSlotAspect(state.geometry);
+    if (!slotAspect || !video.videoWidth) return (guide.style.display = 'none');
+    const camAspect = video.videoWidth / video.videoHeight;
+    let w = 100;
+    let h = 100;
+    if (slotAspect < camAspect) w = (slotAspect / camAspect) * 100;
+    else h = (camAspect / slotAspect) * 100;
+    Object.assign(guide.style, { display: 'block', width: `${w}%`, height: `${h}%`, left: `${(100 - w) / 2}%`, top: `${(100 - h) / 2}%` });
+  }
 
   $('#camera-select').addEventListener('change', (e) => {
     settings.cameraId = e.target.value;
@@ -227,6 +241,7 @@
   function enterCamera() {
     document.body.classList.toggle('mirror', settings.mirror);
     renderShots();
+    positionGuide();
     startCamera();
   }
 

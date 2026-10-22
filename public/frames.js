@@ -36,14 +36,30 @@ function grid(cols, rows, { W, H, margin, top, gap, footer }, aspect) {
   return slots;
 }
 
-const STRIP = { W: 600, H: 1800, margin: 36, top: 40, gap: 24, footer: 240 };
+/*
+ * Standard strip template: the photo windows every Trilogy strip design shares,
+ * measured in pixels on the 696x2000 template artwork and scaled to the print size.
+ * 3 cuts matches the artwork exactly; 4 cuts keeps the same edges and gap.
+ */
+const STRIP_TEMPLATE = { W: 696, H: 2000, x: 80, w: 542, top: 84, bottom: 1608, gap: 55 };
+
+function templateSlots(count, { W, H }) {
+  const t = STRIP_TEMPLATE;
+  const sx = W / t.W;
+  const sy = H / t.H;
+  const h = (t.bottom - t.top - t.gap * (count - 1)) / count;
+  return Array.from({ length: count }, (_, i) => ({ x: t.x * sx, y: (t.top + i * (h + t.gap)) * sy, w: t.w * sx, h: h * sy }));
+}
+
+const STRIP = { W: 600, H: 1800, footer: Math.round(1800 * (1 - STRIP_TEMPLATE.bottom / STRIP_TEMPLATE.H)) };
 const FOUR_R = { W: 1200, H: 1800, margin: 60, top: 60, gap: 30, footer: 260 };
 
 // A geometry decides how many photos a frame holds and how they are arranged.
-// build(aspect, size) returns the photo windows; themes may change size.footer.
+// build(aspect, size) returns the photo windows. Strips use the fixed template (photos are cropped to fill
+// the windows); 4R windows take the camera's shape. Themes may change size.footer for 4R.
 const GEOMETRIES = {
-  strip3: { id: 'strip3', name: '3 Cuts', layout: 'strip3', size: STRIP, count: 3, build: (a, sz) => stack(3, sz, a) },
-  strip4: { id: 'strip4', name: '4 Cuts', layout: 'strip4', size: STRIP, count: 4, build: (a, sz) => stack(4, sz, a) },
+  strip3: { id: 'strip3', name: '3 Cuts', layout: 'strip3', size: STRIP, count: 3, fixed: true, build: () => templateSlots(3, STRIP) },
+  strip4: { id: 'strip4', name: '4 Cuts', layout: 'strip4', size: STRIP, count: 4, fixed: true, build: () => templateSlots(4, STRIP) },
   '4r-single': { id: '4r-single', name: 'Single', layout: '4r', size: FOUR_R, count: 1, build: (a, sz) => stack(1, { ...sz, margin: 70, top: 70 }, a) },
   '4r-duo': { id: '4r-duo', name: 'Duo', layout: '4r', size: FOUR_R, count: 2, build: (a, sz) => stack(2, { ...sz, gap: 40 }, a) },
   '4r-trio': { id: '4r-trio', name: 'Trio', layout: '4r', size: FOUR_R, count: 3, build: (a, sz) => stack(3, { ...sz, gap: 36 }, a) },
@@ -126,14 +142,14 @@ const THEMES = [
   {
     id: 'trilogy-red',
     name: 'Trilogy Red',
-    swatch: '#ad0d1a',
+    swatch: '#af0d19',
     text: '#fffaf3',
     accent: '#fffaf3',
     radius: 0,
     tagline: 'friendship is the key!',
-    footer: { strip: 330, '4r': 300 },
+    footer: { '4r': 300 },
     background(ctx, W, H) {
-      ctx.fillStyle = '#ad0d1a';
+      ctx.fillStyle = '#af0d19';
       ctx.fillRect(0, 0, W, H);
     },
     // italic serif wordmark + tagline, as on the Trilogy strip artwork
@@ -324,13 +340,13 @@ function loadImage(src) {
   return imageCache.get(src);
 }
 
-// Draws a source (canvas/image) into a slot without cropping it ("object-fit: contain").
-// Slots already have the photo's shape, so normally the photo fills the slot exactly.
-function drawContain(ctx, src, slot) {
-  const scale = Math.min(slot.w / src.width, slot.h / src.height);
-  const w = src.width * scale;
-  const h = src.height * scale;
-  ctx.drawImage(src, slot.x + (slot.w - w) / 2, slot.y + (slot.h - h) / 2, w, h);
+// Draws a source (canvas/image) into a slot, filling it ("object-fit: cover").
+// 4R slots already have the photo's shape, so nothing is trimmed there; strip windows trim the sides.
+function drawCover(ctx, src, slot) {
+  const scale = Math.max(slot.w / src.width, slot.h / src.height);
+  const cw = slot.w / scale;
+  const ch = slot.h / scale;
+  ctx.drawImage(src, (src.width - cw) / 2, (src.height - ch) / 2, cw, ch, slot.x, slot.y, slot.w, slot.h);
 }
 
 /*
@@ -343,7 +359,7 @@ async function renderFrame(canvas, geometryId, themeId, photos = [], opts = {}) 
   const base = GEOMETRIES[geometryId];
   const first = photos.find(Boolean);
   const theme = THEMES.find((t) => t.id === themeId) || THEMES[0];
-  const themeFooter = theme.footer && theme.footer[base.layout === '4r' ? '4r' : 'strip'];
+  const themeFooter = !base.fixed && theme.footer && theme.footer[base.layout === '4r' ? '4r' : 'strip'];
   const size = themeFooter ? { ...base.size, footer: themeFooter } : base.size;
   const geo = { ...base, size, slots: base.build(first ? first.width / first.height : photoAspect, size) };
   const { W, H, footer } = geo.size;
@@ -369,7 +385,7 @@ async function renderFrame(canvas, geometryId, themeId, photos = [], opts = {}) 
     ctx.clip();
     const photo = photos[i];
     if (photo) {
-      drawContain(ctx, photo, slot);
+      drawCover(ctx, photo, slot);
     } else {
       ctx.fillStyle = '#d9d9de';
       ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
@@ -431,4 +447,12 @@ function renderPrintSheet(frameCanvas, isStrip) {
   return sheet;
 }
 
-window.Frames = { DPI, GEOMETRIES, LAYOUTS, THEMES, renderFrame, renderPrintSheet, setPhotoAspect };
+// Shape (width / height) of the photo windows for layouts with fixed windows, otherwise null.
+function fixedSlotAspect(geometryId) {
+  const geo = GEOMETRIES[geometryId];
+  if (!geo || !geo.fixed) return null;
+  const slot = geo.build()[0];
+  return slot.w / slot.h;
+}
+
+window.Frames = { DPI, GEOMETRIES, LAYOUTS, THEMES, renderFrame, renderPrintSheet, setPhotoAspect, fixedSlotAspect };
