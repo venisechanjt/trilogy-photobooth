@@ -661,11 +661,7 @@
   $('#lightbox').addEventListener('click', (e) => {
     if (e.target.id === 'lightbox') $('#lightbox').close();
   });
-  $('#hero-logo').addEventListener('click', (e) => {
-    e.target.classList.remove('bounce');
-    void e.target.offsetWidth;
-    e.target.classList.add('bounce');
-  });
+
 
   // ---------- toast ----------
   let toastTimer;
