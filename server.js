@@ -225,6 +225,24 @@ app.post('/api/wall', (req, res) => {
   }
 });
 
+// Clears the wall by moving its photos into output/wall-archive/<date-time>/, so nothing is lost.
+app.post('/api/wall/clear', (req, res) => {
+  try {
+    fs.mkdirSync(WALL_DIR, { recursive: true });
+    const files = fs.readdirSync(WALL_DIR).filter((f) => f.endsWith('.jpg'));
+    if (!files.length) return res.json({ ok: true, cleared: 0 });
+    const archive = path.join(OUTPUT_DIR, 'wall-archive', sessionId());
+    fs.mkdirSync(archive, { recursive: true });
+    files.forEach((f) => fs.renameSync(path.join(WALL_DIR, f), path.join(archive, f)));
+    const cleared = files.filter((f) => !f.endsWith('-thumb.jpg')).length;
+    console.log(`Booth wall cleared: ${cleared} photos moved to ${archive}`);
+    const rel = path.relative(__dirname, archive);
+    res.json({ ok: true, cleared, archive: rel.startsWith('..') ? archive : rel });
+  } catch (err) {
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`📸 Photobooth running at http://localhost:${PORT}`);
   console.log(`   Print mode: ${PRINT_MODE}${PRINT_MODE === 'dry' ? ' (PDFs saved, nothing printed)' : ''}`);

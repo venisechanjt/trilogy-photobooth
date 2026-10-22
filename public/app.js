@@ -711,8 +711,61 @@
       $('#server-info').textContent = 'Server not running — printing will use the browser dialog and email is unavailable. Run "npm start".';
     }
     sel.value = settings.printer;
+    resetClearWall();
+    refreshWallAdmin();
     $('#settings').showModal();
   }
+
+  // ---------- clear booth wall (two taps; photos are archived, not deleted) ----------
+  let wallAdminCount = 0;
+  let clearArmTimer = null;
+  async function refreshWallAdmin() {
+    const btn = $('#clear-wall');
+    if (!server) {
+      $('#wall-admin-count').textContent = 'Needs the server running.';
+      btn.disabled = true;
+      return;
+    }
+    try {
+      const { total } = await (await fetch('/api/wall')).json();
+      wallAdminCount = total;
+      $('#wall-admin-count').textContent = `${total} photo${total === 1 ? '' : 's'} on the wall`;
+      btn.disabled = total === 0;
+    } catch {
+      $('#wall-admin-count').textContent = 'Couldn’t read the wall.';
+    }
+  }
+  function resetClearWall() {
+    clearTimeout(clearArmTimer);
+    const btn = $('#clear-wall');
+    btn.classList.remove('armed');
+    btn.textContent = 'Clear booth wall';
+    $('#clear-wall-status').textContent = '';
+  }
+  $('#clear-wall').addEventListener('click', async () => {
+    const btn = $('#clear-wall');
+    if (!btn.classList.contains('armed')) {
+      btn.classList.add('armed');
+      btn.textContent = `Tap again to clear ${wallAdminCount} photo${wallAdminCount === 1 ? '' : 's'}`;
+      clearArmTimer = setTimeout(resetClearWall, 4000);
+      return;
+    }
+    clearTimeout(clearArmTimer);
+    btn.disabled = true;
+    try {
+      const { cleared, archive } = await postJSON('/api/wall/clear', {});
+      resetClearWall();
+      $('#clear-wall-status').textContent = cleared
+        ? `Cleared ${cleared} photo${cleared === 1 ? '' : 's'}. They're saved in ${archive}.`
+        : 'The wall was already empty.';
+      wallIds = null;
+      if (current === 'home') loadWall();
+    } catch (err) {
+      resetClearWall();
+      $('#clear-wall-status').textContent = `Couldn't clear the wall: ${err.message}`;
+    }
+    refreshWallAdmin();
+  });
   $('#settings-btn').addEventListener('click', openSettings);
   $('#settings-save').addEventListener('click', () => {
     settings.eventName = $('#set-event').value.trim() || DEFAULT_SETTINGS.eventName;

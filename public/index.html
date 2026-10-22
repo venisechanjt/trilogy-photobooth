@@ -208,6 +208,14 @@
       <label class="field"><span>Printer</span><select id="set-printer"><option value="">System default</option></select></label>
       <label class="field"><span>Max prints per session</span><input id="set-max" type="number" min="1" max="50" /></label>
       <label class="check"><input type="checkbox" id="set-mirror" /> Mirror photos (selfie view)</label>
+      <div class="field">
+        <span>Booth wall</span>
+        <div class="wall-admin">
+          <span class="hint" id="wall-admin-count"></span>
+          <button type="button" class="btn ghost small danger" id="clear-wall">Clear booth wall</button>
+        </div>
+        <small class="hint" id="clear-wall-status" role="status"></small>
+      </div>
       <p class="hint" id="server-info"></p>
       <div class="actions">
         <button class="btn primary" value="save" id="settings-save">Save</button>
