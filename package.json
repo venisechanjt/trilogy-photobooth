@@ -8,7 +8,8 @@
     "start": "node server.js",
     "dev": "node server.js --dry",
     "setup-email": "node scripts/setup-email.js",
-    "set-pin": "node scripts/set-pin.js"
+    "set-pin": "node scripts/set-pin.js",
+    "printer-sizes": "node scripts/printer-sizes.js"
   },
   "engines": {
     "node": ">=18"

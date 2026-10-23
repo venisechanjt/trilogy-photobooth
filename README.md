@@ -16,6 +16,24 @@ Open **http://localhost:3000** in Chrome or Edge. Browsers only allow the camera
 
 To try it without a printer, run `npm run dev`. PDFs are saved to `output/` and nothing is sent to a printer.
 
+### On a Mac
+
+1. Install **Node.js** (LTS) from https://nodejs.org.
+2. Open **Terminal** and get the project (the first `git` command may offer to install Apple's developer tools; click *Install* and run it again afterwards):
+   ```bash
+   cd ~/Desktop
+   git clone https://github.com/venisechanjt/trilogy-photobooth
+   cd trilogy-photobooth
+   npm install
+   npm run set-pin
+   npm run setup-email
+   ```
+3. Add the printer in **System Settings → Printers & Scanners**, then run `npm run printer-sizes` so the booth uses the printer's 4×6 paper.
+4. Double-click **`start-booth.command`** (in the project folder in Finder) to start the booth full screen. Allow the camera when asked. If macOS says it can't be opened, right-click it → **Open**. If the camera stays black, allow Chrome in **System Settings → Privacy & Security → Camera**.
+5. To finish: **Cmd + Q** in the booth window, then **Ctrl + C** in the Terminal window.
+
+To update later: `cd ~/Desktop/trilogy-photobooth && git pull`.
+
 ### Kiosk mode (recommended at events)
 
 Run the browser full screen so guests can't leave the app:
@@ -76,7 +94,7 @@ If the email template attaches the individual photos, copies of every guest emai
 ## Going live (event day)
 
 1. Plug in the printer and camera, load 4×6" paper, and connect to Wi-Fi (or a phone hotspot) for email.
-2. Double-click **`start-booth.bat`** in the project folder. It starts the booth in print mode and opens it full screen. The first time, allow the camera when asked.
+2. Double-click **`start-booth.bat`** (Windows) or **`start-booth.command`** (Mac) in the project folder. It starts the booth in print mode and opens it full screen. The first time, allow the camera when asked.
 3. Do one test session yourself (print + email) before guests arrive.
 4. To finish: press **Alt + F4** to close the full-screen booth, then close the "trilogy photobooth server" window.
 
