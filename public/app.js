@@ -843,20 +843,18 @@
       ]);
       FRAMES.splice(0);
       frameProblems = [];
-      repo.forEach((r, i) => {
-        if (!repoImages[i]) return frameProblems.push(`${r.file}: couldn’t be opened`);
+      // every frame is scanned on load: this finds its photo windows and prepares the see-through top layer
+      const add = (img, label, info) => {
+        if (!img) return frameProblems.push(`${label}: couldn’t be opened`);
         try {
-          const found = Frames.detectFrameWindows(repoImages[i]);
-          Frames.addFrame({ id: `repo:${r.file}`, name: r.name, url: r.url, source: 'repo', image: repoImages[i], layout: found.layout, slots: found.slots, windowsTransparent: found.windowsTransparent });
+          const found = Frames.detectFrameWindows(img);
+          Frames.addFrame({ ...info, layout: found.layout, slots: found.slots, overlay: found.overlay });
         } catch (err) {
-          frameProblems.push(`${r.file}: ${err.message}`);
+          frameProblems.push(`${label}: ${err.message}`);
         }
-      });
-      frames.forEach((f, i) => {
-        if (uploadImages[i]) {
-          Frames.addFrame({ id: `upload:${f.id}`, uploadId: f.id, name: f.name, url: f.url, source: 'upload', image: uploadImages[i], layout: f.layout, slots: f.slots, windowsTransparent: f.windowsTransparent });
-        }
-      });
+      };
+      repo.forEach((r, i) => add(repoImages[i], r.file, { id: `repo:${r.file}`, name: r.name, url: r.url, source: 'repo' }));
+      frames.forEach((f, i) => add(uploadImages[i], f.name, { id: `upload:${f.id}`, uploadId: f.id, name: f.name, url: f.url, source: 'upload' }));
     } catch {}
   }
 
@@ -938,7 +936,8 @@
           image = c.toDataURL('image/png');
         }
         URL.revokeObjectURL(url);
-        await postJSON('/api/frames', { name, image, ...found });
+        const { overlay, ...windows } = found; // the server only needs where the windows are
+        await postJSON('/api/frames', { name, image, ...windows });
         lines.push(`✓ ${name}: ${LAYOUT_LABEL[found.layout]}, ${found.slots.length} photo windows found`);
       } catch (err) {
         lines.push(`✗ ${file.name}: ${err.message}`);

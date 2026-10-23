@@ -115,7 +115,7 @@ The booth has **no built-in frames**: it uses only your frame artwork. A layout 
 2. **Add file → Upload files**, drag your frame images in, and click **Commit changes**.
 3. On the booth laptop, run `git pull` and restart the booth.
 
-Every image in that folder is loaded automatically. The file name becomes the frame name (`trilogy_red-3cut.png` → "trilogy red 3cut"). A number at the start only sets the order (`01-…`, `02-…`). To remove a permanent frame, delete it from that folder on GitHub and `git pull`.
+Every image in that folder is loaded automatically. The file name becomes the frame name: numbers or a layout code at the start (`3C-`, `4C-`, `4R-`, `01-`) only set the order, so `3C-02-green.png` shows as "green". To remove a permanent frame, delete it from that folder on GitHub and `git pull`.
 
 ### Quick additions on one laptop: upload in ⚙️
 
@@ -124,7 +124,8 @@ Every image in that folder is loaded automatically. The file name becomes the fr
 ### What frame images need
 
 * **Shape:** a tall 2×6" strip (for example 600×1800 or 696×2000) with **3 or 4** photo windows, or a portrait 4×6" / 4R (for example 1200×1800) with **1 to 8** windows.
-* **Photo windows:** plain **white boxes** on a coloured frame, or **see-through** areas in a PNG. In a see-through PNG, anything drawn over the windows (stickers, doodles) stays on top of the photos.
+* **Photo windows:** any shape (rectangles, hearts…) in **one plain light colour** that differs from the frame around it (e.g. light grey windows on a white frame, or white windows on a coloured frame), or **see-through** areas in a PNG.
+* **The frame is always the top layer:** photos go underneath and show through the windows, so stickers, doodles or edges that overlap a window stay on top of the photo.
 * The booth finds the windows, works out the layout, and crops photos to fill each window. The camera screen shows a dashed guide of what will fit.
 * If an image can't be used (wrong shape, wrong number of windows), ⚙️ → *Your frames* shows a ⚠ note saying why.
 

@@ -442,8 +442,8 @@ function readRepoFrames() {
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     .map((f) => ({
       file: f,
-      // "01-trilogy_red.png" -> "trilogy red" (a number at the start only sets the order)
-      name: f.replace(/\.[^.]+$/, '').replace(/^\d+[\s._-]+/, '').replace(/[_-]+/g, ' ').trim() || f,
+      // "3C-02-green.png" -> "green": a number or layout code (3C, 4C, 4R) at the start only sets the order
+      name: f.replace(/\.[^.]+$/, '').replace(/^((\d+|[34]c|4r)[\s._-]+)+/i, '').replace(/[_-]+/g, ' ').trim() || f,
       url: `/frames/${encodeURIComponent(f)}`,
     }));
 }
