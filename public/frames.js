@@ -141,12 +141,13 @@ function detectFrameWindows(img) {
   for (let i = 3; i < data.length; i += 4) if (data[i] < 20) clear++;
   const windowsTransparent = clear > W * H * 0.02;
   const mask = new Uint8Array(W * H);
+  const diff = (i, c) => Math.max(Math.abs(data[i] - c[0]), Math.abs(data[i + 1] - c[1]), Math.abs(data[i + 2] - c[2]));
+  let win = null; // colour of solid windows
   if (windowsTransparent) {
     for (let p = 0; p < W * H; p++) mask[p] = data[p * 4 + 3] < 20;
   } else {
     // Solid windows: find their colour (the most common light colour that isn't the frame's edge colour),
     // so light-grey windows on a white frame work too.
-    const diff = (i, c) => Math.max(Math.abs(data[i] - c[0]), Math.abs(data[i + 1] - c[1]), Math.abs(data[i + 2] - c[2]));
     const count = (map, key) => map.set(key, (map.get(key) || 0) + 1);
     const top = (map) => [...map.entries()].sort((a, b) => b[1] - a[1])[0];
     const edgeCounts = new Map();
@@ -160,7 +161,7 @@ function detectFrameWindows(img) {
     }
     const best = top(light);
     if (!best) throw new Error('Couldn’t find the photo windows. Make them a plain light colour (like white) that differs from the frame, or see-through in a PNG.');
-    const win = [best[0] >> 16, (best[0] >> 8) & 255, best[0] & 255];
+    win = [best[0] >> 16, (best[0] >> 8) & 255, best[0] & 255];
     // stay well clear of the frame colour, even when they are close (e.g. #f5f5f5 windows on a #ffffff frame)
     const gap = Math.max(Math.abs(win[0] - edge[0]), Math.abs(win[1] - edge[1]), Math.abs(win[2] - edge[2]));
     const tolerance = Math.min(10, Math.floor((gap - 1) / 2));
@@ -226,12 +227,27 @@ function detectFrameWindows(img) {
   overlay.height = H;
   const octx = overlay.getContext('2d');
   octx.drawImage(img, 0, 0, W, H);
+  // Inside each window, every patch of window colour is cleared, including pockets enclosed by outline
+  // stickers (so the photo shows through them, as in the design), plus light soft-edge pixels next to them.
   if (!windowsTransparent) {
     const od = octx.getImageData(0, 0, W, H);
+    const clear = new Uint8Array(W * H);
+    rects.forEach((r) => {
+      const x0 = Math.round(r.x * W), y0 = Math.round(r.y * H);
+      const x1 = Math.min(W, Math.round((r.x + r.w) * W)), y1 = Math.min(H, Math.round((r.y + r.h) * H));
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const p = y * W + x;
+          const nextToWindow = mask[p] || (x > 0 && mask[p - 1]) || (x < W - 1 && mask[p + 1]) || (y > 0 && mask[p - W]) || (y < H - 1 && mask[p + W]);
+          if (mask[p] || (nextToWindow && diff(p * 4, win) <= 48) || windowAreas.has(seen[p])) clear[p] = 1;
+        }
+      }
+    });
+    // the window's own 1px outer edge (the photo is grown by the same 1px)
     const inWindow = (q) => windowAreas.has(seen[q]);
     for (let p = 0; p < W * H; p++) {
       const x = p % W;
-      if (inWindow(p) || (x > 0 && inWindow(p - 1)) || (x < W - 1 && inWindow(p + 1)) || (p >= W && inWindow(p - W)) || (p < W * (H - 1) && inWindow(p + W))) {
+      if (clear[p] || (x > 0 && inWindow(p - 1)) || (x < W - 1 && inWindow(p + 1)) || (p >= W && inWindow(p - W)) || (p < W * (H - 1) && inWindow(p + W))) {
         od.data[p * 4 + 3] = 0;
       }
     }
