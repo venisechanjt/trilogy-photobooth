@@ -82,17 +82,67 @@ async function listPrinters() {
   return { printers, default: defMatch ? defMatch[1] : null };
 }
 
+// Paths shown to the operator: relative to the project when inside it, otherwise in full.
+function displayPath(p) {
+  const rel = path.relative(__dirname, p);
+  return rel.startsWith('..') ? p : rel;
+}
+
+// Gives up after a minute so a switched-off or stuck printer can't freeze the booth.
+function withTimeout(promise, ms, message) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => (timer = setTimeout(() => reject(new Error(message)), ms)))]).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
 async function sendToPrinter(pdfPath, copies, printer) {
+  const timeoutMsg = 'The printer didn’t respond within a minute. Check that it’s on, has paper, and is the right printer in ⚙️ settings.';
+  console.log(`Printing ${copies} cop${copies === 1 ? 'y' : 'ies'} on ${printer || 'the default printer'}: ${pdfPath}`);
   if (process.platform === 'win32') {
     const { print } = require('pdf-to-printer');
-    await print(pdfPath, { printer: printer || undefined, copies, scale: 'fit' });
+    await withTimeout(print(pdfPath, { printer: printer || undefined, copies, scale: 'fit' }), 60000, timeoutMsg);
     return;
   }
   const args = ['-n', String(copies), '-o', 'fit-to-page'];
   if (PRINT_MEDIA) args.push('-o', `media=${PRINT_MEDIA}`);
   if (printer) args.push('-d', printer);
   args.push(pdfPath);
-  await execFileP('lp', args);
+  await withTimeout(execFileP('lp', args), 60000, timeoutMsg);
+}
+
+// A 4x6in calibration page: a border 1/8in from the edge, size labels, colour patches and the strip cut line.
+function buildTestPagePdf(filePath) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: [288, 432], margin: 0 });
+    const out = fs.createWriteStream(filePath);
+    doc.pipe(out);
+    const inset = 9; // 1/8 inch
+    doc.lineWidth(1.5).strokeColor('#273f2d').rect(inset, inset, 288 - inset * 2, 432 - inset * 2).stroke();
+    // strip cut marks at the top and bottom edges
+    doc.lineWidth(0.75).strokeColor('#999').dash(3, { space: 3 });
+    doc.moveTo(144, 16).lineTo(144, 50).stroke();
+    doc.moveTo(144, 382).lineTo(144, 416).stroke();
+    doc.undash();
+    [[0, 0], [288, 0], [0, 432], [288, 432]].forEach(([x, y]) => {
+      const dx = x ? -1 : 1;
+      const dy = y ? -1 : 1;
+      doc.lineWidth(1).strokeColor('#b8452c').moveTo(x, y + dy * 24).lineTo(x, y).lineTo(x + dx * 24, y).stroke();
+    });
+    doc.fillColor('#273f2d').fontSize(18).text('Photobooth test print', 0, 60, { width: 288, align: 'center' });
+    doc.fontSize(10).fillColor('#5d6648')
+      .text('This page is 4 × 6 in (10 × 15 cm).', 0, 90, { width: 288, align: 'center' })
+      .text('Check:', 34, 130)
+      .text('• The green border is about 3 mm from every edge.', 34, 146, { width: 220 })
+      .text('• The red corner marks touch the paper corners (or are just cut off if printing borderless).', 34, 172, { width: 220 })
+      .text('• Strip prints are cut between the dashed marks at the top and bottom.', 34, 210, { width: 220 });
+    const colours = ['#273f2d', '#734121', '#b5885e', '#727c57', '#c8b89f', '#af0d19', '#1565c0', '#000000'];
+    colours.forEach((c, i) => doc.rect(34 + (i % 4) * 56, 260 + Math.floor(i / 4) * 40, 48, 32).fill(c));
+    doc.fillColor('#5d6648').fontSize(8).text(new Date().toLocaleString('en-GB'), 0, 356, { width: 288, align: 'center' });
+    doc.end();
+    out.on('finish', resolve);
+    out.on('error', reject);
+  });
 }
 
 function mailer() {
@@ -184,10 +234,27 @@ app.post('/api/print', async (req, res) => {
     }
 
     await sendToPrinter(pdfPath, n, printer || DEFAULT_PRINTER);
-    console.log(`Printed ${n} copies of ${pdfPath} on ${printer || DEFAULT_PRINTER || 'default printer'}`);
     res.json({ ok: true, copies: n, file: path.basename(pdfPath) });
   } catch (err) {
     console.error('Print failed:', err);
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
+// Prints the calibration page so the operator can check paper size and margins.
+app.post('/api/print/test', requireAdmin, async (req, res) => {
+  try {
+    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    const pdfPath = path.join(OUTPUT_DIR, `test-page-${sessionId()}.pdf`);
+    await buildTestPagePdf(pdfPath);
+    if (PRINT_MODE === 'dry') {
+      console.log(`[dry-run] test page saved: ${pdfPath}`);
+      return res.json({ ok: true, dryRun: true, file: displayPath(pdfPath) });
+    }
+    await sendToPrinter(pdfPath, 1, req.body.printer || DEFAULT_PRINTER);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Test print failed:', err);
     res.status(500).json({ error: String(err.message || err) });
   }
 });
@@ -415,8 +482,7 @@ app.post('/api/wall/clear', requireAdmin, (req, res) => {
     files.forEach((f) => fs.renameSync(path.join(WALL_DIR, f), path.join(archive, f)));
     const cleared = files.filter((f) => !f.endsWith('-thumb.jpg')).length;
     console.log(`Booth wall cleared: ${cleared} photos moved to ${archive}`);
-    const rel = path.relative(__dirname, archive);
-    res.json({ ok: true, cleared, archive: rel.startsWith('..') ? archive : rel });
+    res.json({ ok: true, cleared, archive: displayPath(archive) });
   } catch (err) {
     res.status(500).json({ error: String(err.message || err) });
   }

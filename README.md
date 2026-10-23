@@ -37,16 +37,35 @@ On the camera screen, guests choose:
 
 ## Printing
 
-The server turns every print into a **4×6" (4R) PDF** and sends it to the laptop's printer with the chosen number of copies. No print dialog appears.
+The server turns every print into a **4×6" (4R) PDF** and sends it straight to the laptop's printer with the chosen number of copies. No print dialog appears.
 
 | Laptop | How it prints |
 |---|---|
 | Windows | `pdf-to-printer` (bundled SumatraPDF), silent, with copies |
 | macOS / Linux | CUPS `lp -n <copies> -o media=w288h432` |
 
-* 3 Cuts and 4 Cuts are 2×6" strips, so each 4R sheet holds **2 strips** side by side to be cut apart. This is the usual photobooth strip format.
-* Load 4×6" paper and set it as the printer's default paper size. On macOS/Linux, if the printer rejects `w288h432`, set `PRINT_MEDIA` in `.env` to the name your printer uses (run `lpoptions -p <printer> -l` to list them).
-* If the server can't print, the page offers the browser print dialog instead (one page per copy).
+* **Only `npm start` (or `start-booth.bat`) prints.** `npm run dev` is test mode: it saves PDFs to `output/` and shows a red "Test mode" note on the print screen.
+* 3 Cuts and 4 Cuts are 2×6" strips, so each 4R sheet holds **2 strips** side by side, to be cut apart.
+* If the printer doesn't respond within a minute (switched off, out of paper, stuck), the booth shows a message instead of freezing, and offers the browser print dialog as a fallback.
+
+### Set up the printer (Windows)
+
+1. Connect the printer and install its driver. Print a Windows test page from *Settings → Bluetooth & devices → Printers & scanners* to confirm it works.
+2. In the same place, open the printer → **Printing preferences** and set:
+   * **Paper size: 4×6 in / 10×15 cm** (sometimes called *Postcard* or *4R*). This matters most: if it's left on A4 or Letter, the photo prints small in the middle of a big page.
+   * **Borderless: on**, if your printer supports it.
+   * **Quality: photo / high**, and the paper type that matches your photo paper.
+3. Start the booth with `npm start`, open ⚙️ → PIN → pick the printer under **Printer**, then tap **🖨️ Print test page**. On the page, the green border should be about 3 mm from every edge. Then **Save**.
+4. Do one full guest session and print it.
+
+Avoid choosing *Microsoft Print to PDF* or *OneNote*: they open a save window instead of printing.
+
+## Going live (event day)
+
+1. Plug in the printer and camera, load 4×6" paper, and connect to Wi-Fi (or a phone hotspot) for email.
+2. Double-click **`start-booth.bat`** in the project folder. It starts the booth in print mode and opens it full screen. The first time, allow the camera when asked.
+3. Do one test session yourself (print + email) before guests arrive.
+4. To finish: press **Alt + F4** to close the full-screen booth, then close the "trilogy photobooth server" window.
 
 ## Home page and booth wall
 

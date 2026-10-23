@@ -848,3 +848,16 @@ button.brand:focus-visible { outline: 3px solid var(--caramel); outline-offset: 
 .tpl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 #tpl-status, .field .check { font-weight: 400; }
 .field .hint { font-weight: 400; }
+
+/* ---------- printing ---------- */
+.field > label { font-weight: 600; color: var(--forest); }
+.test-mode {
+  margin: -8px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fbeee9;
+  color: var(--err);
+  font-size: 0.9rem;
+  text-align: center;
+}
+#test-print-status { white-space: normal; }

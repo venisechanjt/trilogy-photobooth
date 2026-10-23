@@ -176,6 +176,7 @@
           </label>
           <label class="check"><input type="checkbox" id="wall-consent" checked /> Pin my photos on the booth wall</label>
           <button class="btn primary big" id="print-btn">🖨️ Print</button>
+          <p class="test-mode" id="test-mode-note" hidden>Test mode: nothing will be sent to the printer. Start the booth with <b>npm start</b> to print.</p>
           <div class="secondary-actions">
             <button class="btn ghost small" id="email-only-btn">✉️ Email only, no print</button>
             <button class="btn ghost small" id="download-btn">⬇ Download</button>
@@ -205,7 +206,14 @@
     <form method="dialog" class="settings-form">
       <h2>Booth settings</h2>
       <label class="field"><span>Event name (printed on the frame)</span><input id="set-event" maxlength="40" /></label>
-      <label class="field"><span>Printer</span><select id="set-printer"><option value="">System default</option></select></label>
+      <div class="field">
+        <label for="set-printer">Printer</label>
+        <select id="set-printer"><option value="">System default</option></select>
+        <div class="tpl-actions">
+          <button type="button" class="btn ghost small" id="test-print-btn">🖨️ Print test page</button>
+        </div>
+        <small class="hint" id="test-print-status" role="status"></small>
+      </div>
       <label class="field"><span>Max prints per session</span><input id="set-max" type="number" min="1" max="50" /></label>
       <label class="check"><input type="checkbox" id="set-mirror" /> Mirror photos (selfie view)</label>
       <div class="field">

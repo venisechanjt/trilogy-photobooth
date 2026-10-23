@@ -485,6 +485,7 @@
     $('#sheet-note').textContent = isStrip() ? 'Each print is a 4R sheet with 2 strips — cut down the middle.' : '4R (4×6") print';
     $('#print-status').textContent = '';
     $('#print-status').className = 'status';
+    $('#test-mode-note').hidden = server?.printMode !== 'dry';
     updateQty();
   }
 
@@ -755,6 +756,7 @@
         ? 'Set up. Send yourself a test to check it.'
         : 'Not set up yet. Run "npm run setup-email" in PowerShell, then restart the booth.';
     $('#test-email-status').textContent = '';
+    $('#test-print-status').textContent = '';
     loadEmailTemplate();
     $('#settings').showModal();
   }
@@ -775,6 +777,24 @@
       const sample = await renderFrame(document.createElement('canvas'), 'strip3', sampleTheme(), [], frameOpts());
       await postJSON('/api/email/test', { to: input.value.trim(), event: settings.eventName, image: sample.toDataURL('image/jpeg', 0.9) });
       status.textContent = `✓ Sent to ${input.value.trim()}. Check the inbox (and spam).`;
+    } catch (err) {
+      status.textContent = `✗ ${err.message}`;
+    }
+    btn.disabled = false;
+  });
+
+  // prints a 4x6 calibration page on the printer currently picked in the list (saved or not)
+  $('#test-print-btn').addEventListener('click', async () => {
+    const status = $('#test-print-status');
+    if (!server) return (status.textContent = 'Printing needs the server running (npm start).');
+    const btn = $('#test-print-btn');
+    btn.disabled = true;
+    status.textContent = 'Sending the test page…';
+    try {
+      const r = await postJSON('/api/print/test', { printer: $('#set-printer').value });
+      status.textContent = r.dryRun
+        ? `Test mode: nothing printed. The page was saved as ${r.file}. Start the booth with npm start to print.`
+        : '✓ Sent. Check the page: the green border should be about 3 mm from every edge.';
     } catch (err) {
       status.textContent = `✗ ${err.message}`;
     }
