@@ -23,6 +23,9 @@ const OUTPUT_DIR = path.resolve(process.env.OUTPUT_DIR || path.join(__dirname, '
 
 // Photos guests chose to share on the booth wall (delete files here to remove them from the wall)
 const WALL_DIR = path.join(OUTPUT_DIR, 'wall');
+// Every finished photostrip (one JPEG per session) and the PDFs sent to the printer
+const STRIPS_DIR = path.join(OUTPUT_DIR, 'photostrips');
+const PRINTS_DIR = path.join(OUTPUT_DIR, 'prints');
 const WALL_LIMIT = Number(process.env.WALL_LIMIT) || 300;
 // Frame designs uploaded from the settings screen (image + a .json with the photo windows)
 const FRAMES_DIR = path.resolve(process.env.FRAMES_DIR || path.join(__dirname, 'custom-frames'));
@@ -224,8 +227,8 @@ app.post('/api/print', async (req, res) => {
     const n = Math.max(1, Math.min(MAX_COPIES, parseInt(copies, 10) || 1));
     const { buffer } = dataUrlToBuffer(image);
     const id = sessionId();
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    const pdfPath = path.join(OUTPUT_DIR, `print-${id}.pdf`);
+    fs.mkdirSync(PRINTS_DIR, { recursive: true });
+    const pdfPath = path.join(PRINTS_DIR, `print-${id}.pdf`);
     await buildPdf(buffer, pdfPath);
 
     if (PRINT_MODE === 'dry') {
@@ -244,8 +247,8 @@ app.post('/api/print', async (req, res) => {
 // Prints the calibration page so the operator can check paper size and margins.
 app.post('/api/print/test', requireAdmin, async (req, res) => {
   try {
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    const pdfPath = path.join(OUTPUT_DIR, `test-page-${sessionId()}.pdf`);
+    fs.mkdirSync(PRINTS_DIR, { recursive: true });
+    const pdfPath = path.join(PRINTS_DIR, `test-page-${sessionId()}.pdf`);
     await buildTestPagePdf(pdfPath);
     if (PRINT_MODE === 'dry') {
       console.log(`[dry-run] test page saved: ${pdfPath}`);
@@ -363,12 +366,12 @@ app.post('/api/email/test', requireAdmin, async (req, res) => {
   }
 });
 
-// Keeps a copy of every finished strip for the operator.
+// Keeps the final photostrip of every session in output/photostrips/ (individual photos are never saved).
 app.post('/api/save', (req, res) => {
   try {
     const { buffer, ext } = dataUrlToBuffer(req.body.image);
-    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    const file = path.join(OUTPUT_DIR, `photo-${sessionId()}.${ext}`);
+    fs.mkdirSync(STRIPS_DIR, { recursive: true });
+    const file = path.join(STRIPS_DIR, `photostrip-${sessionId()}.${ext}`);
     fs.writeFileSync(file, buffer);
     res.json({ ok: true, file: path.basename(file) });
   } catch (err) {
@@ -493,6 +496,7 @@ app.listen(PORT, () => {
   console.log(`   Print mode: ${PRINT_MODE}${PRINT_MODE === 'dry' ? ' (PDFs saved, nothing printed)' : ''}`);
   console.log(`   Email: ${mailer() ? 'configured' : 'not configured (set SMTP_* in .env)'}`);
   console.log(`   Output folder: ${OUTPUT_DIR}`);
+  console.log(`   Photostrips saved in: ${STRIPS_DIR}`);
   console.log(`   Settings PIN: ${ADMIN_PIN ? 'on' : 'off (run "npm run set-pin" to add one)'}`);
   if (os.platform() !== 'win32') console.log(`   CUPS media: ${PRINT_MEDIA}`);
 });

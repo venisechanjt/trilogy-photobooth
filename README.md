@@ -60,6 +60,19 @@ The server turns every print into a **4×6" (4R) PDF** and sends it straight to 
 
 Avoid choosing *Microsoft Print to PDF* or *OneNote*: they open a save window instead of printing.
 
+## Where photos are kept
+
+| Folder | What's in it |
+|---|---|
+| `output/photostrips/` | The final photostrip of **every** session (`photostrip-<date>-<time>.jpg`) |
+| `output/wall/` | Photostrips of guests who kept *Pin my photostrip on the booth wall* ticked |
+| `output/wall-archive/` | Wall photos moved there by *Clear booth wall* |
+| `output/prints/` | The 4×6 PDFs sent to the printer, and test pages |
+
+**Individual photos are never saved.** They only exist in the browser during the session, and are cleared when the guest finishes, leaves via the logo, or after 3 minutes without a touch. The print screen and thank-you screen tell guests this.
+
+If the email template attaches the individual photos, copies of every guest email (with attachments) also stay in the sending Gmail account's **Sent** folder. Delete them after the event if you don't want to keep them.
+
 ## Going live (event day)
 
 1. Plug in the printer and camera, load 4×6" paper, and connect to Wi-Fi (or a phone hotspot) for email.
@@ -86,7 +99,7 @@ npm run setup-email
 
 It asks for the Gmail address the photos are sent from and a Gmail **App Password**, sends you a test email, and saves the settings to `.env`. Restart the booth afterwards. To get an App Password: turn on [2-Step Verification](https://myaccount.google.com/signinoptions/twosv), then create one at [App Passwords](https://myaccount.google.com/apppasswords).
 
-**Email template:** ⚙️ → *Email template*. Edit the subject and message; `{event}` becomes the event name and `{date}` today's date. Every guest email attaches the photostrip (`<event>-photostrip.jpg`). Tick *Also attach the individual photos* to send the separate shots too. The template is saved in `email-template.json` on the laptop.
+**Email template:** ⚙️ → *Email template*. Edit the subject and message; `{event}` becomes the event name and `{date}` today's date. Every guest email attaches the photostrip (`<event>-photostrip.jpg`). Tick *Also attach all 8 photos the guest took* to send every shot too. The template is saved in `email-template.json` on the laptop.
 
 To check email at any time, use ⚙️ → *Email* → **Send test**. It sends exactly what guests receive, with a sample photostrip attached and "[Test]" in the subject.
 

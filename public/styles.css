@@ -861,3 +861,15 @@ button.brand:focus-visible { outline: 3px solid var(--caramel); outline-offset: 
   text-align: center;
 }
 #test-print-status { white-space: normal; }
+
+/* ---------- privacy note ---------- */
+.privacy {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.done .privacy { max-width: 440px; }

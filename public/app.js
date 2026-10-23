@@ -78,7 +78,10 @@
     state.shots = Array(TOTAL_SHOTS).fill(null);
     state.selection = [];
     state.copies = 1;
-    state.wallPosted = false;
+    state.savedStrip = null;
+    state.wallStrip = null;
+    renderShots();
+    $('#pick-grid').innerHTML = '';
     $('#wall-consent').checked = true;
     $('#email').value = '';
     $('#print-status').textContent = '';
@@ -554,17 +557,18 @@
           .catch((e) => ({ type: 'print', ok: false, e }))
       );
     }
-    if ($('#wall-consent').checked) {
-      if (!state.wallPosted) {
-        state.wallPosted = true;
-        postJSON('/api/wall', { image: frameData, thumb: scaledJpeg(finalFrame, 700) }).catch(() => (state.wallPosted = false));
-      }
-    } else if (!print) {
-      postJSON('/api/save', { image: frameData }).catch(() => {});
+    // keep each finished photostrip once (a retry after a failed print doesn't save it again)
+    if (state.savedStrip !== finalFrame) {
+      state.savedStrip = finalFrame;
+      postJSON('/api/save', { image: frameData }).catch(() => (state.savedStrip = null));
+    }
+    if ($('#wall-consent').checked && state.wallStrip !== finalFrame) {
+      state.wallStrip = finalFrame;
+      postJSON('/api/wall', { image: frameData, thumb: scaledJpeg(finalFrame, 700) }).catch(() => (state.wallStrip = null));
     }
     if (email) {
       jobs.push(
-        postJSON('/api/email', { email, event: settings.eventName, image: frameData, photos: selectedPhotos().map((p) => scaledJpeg(p)) })
+        postJSON('/api/email', { email, event: settings.eventName, image: frameData, photos: state.shots.filter(Boolean).map((p) => scaledJpeg(p)) })
           .then((r) => ({ type: 'email', ok: true, r }))
           .catch((e) => ({ type: 'email', ok: false, e }))
       );
@@ -592,7 +596,7 @@
     if (printRes) lines.push(`${state.copies} print${state.copies > 1 ? 's' : ''} ${printRes.r.dryRun ? 'saved (test mode, printer not used)' : 'on the way'}.`);
     if (emailRes?.ok) lines.push(`A digital copy was sent to ${email}.`);
     if (emailRes && !emailRes.ok) lines.push(`We couldn't send the email (${emailRes.e.message}). Please ask the booth staff.`);
-    if (state.wallPosted) lines.push('Your photos are pinned on the booth wall.');
+    if (state.wallStrip) lines.push('Your photostrip is pinned on the booth wall.');
     showDone(printRes ? 'Your photos are printing!' : 'Check your inbox!', lines.join(' '));
   }
 
@@ -636,6 +640,11 @@
     $('#done-title').textContent = title;
     $('#done-detail').textContent = detail;
     go('done');
+    // the session is over: drop the individual photos right away (the privacy note promises this)
+    state.shots = Array(TOTAL_SHOTS).fill(null);
+    state.selection = [];
+    renderShots(); // also removes the thumbnails from the (hidden) camera screen
+    $('#pick-grid').innerHTML = '';
     window.FX?.confetti();
     let left = 30;
     const tick = () => ($('#restart-timer').textContent = `Starting over in ${left}s`);
@@ -648,6 +657,15 @@
     }, 1000);
   }
   $('#restart').addEventListener('click', () => go('home'));
+
+  // If a guest walks away mid-session, go home after 3 minutes without a touch so their photos are cleared.
+  const IDLE_MS = 3 * 60 * 1000;
+  let lastActivity = Date.now();
+  ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, () => (lastActivity = Date.now()), true));
+  setInterval(() => {
+    const midSession = ['layout', 'frame', 'camera', 'select', 'print'].includes(current);
+    if (midSession && !shooting && !document.querySelector('dialog[open]') && Date.now() - lastActivity > IDLE_MS) go('home');
+  }, 10000);
   // the logo in the top bar always leads home; check first if a guest is partway through a session
   $('#brand-home').addEventListener('click', () => {
     if (current === 'home') return;
