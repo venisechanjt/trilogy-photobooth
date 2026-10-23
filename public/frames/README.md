@@ -1,1 +1,2 @@
-Put your own frame artwork (PNG) here. See "Adding your own templates" in the main README.
+Put your permanent frame images (PNG or JPG) in this folder; the booth loads every image here.
+See "Adding your own frames" in the main README.

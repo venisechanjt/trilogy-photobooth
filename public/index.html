@@ -16,7 +16,7 @@
       <li data-step="layout">Layout</li>
       <li data-step="frame" class="only-4r">Frame</li>
       <li data-step="camera">Shoot</li>
-      <li data-step="select">Pick &amp; style</li>
+      <li data-step="select">Pick &amp; frame</li>
       <li data-step="print">Print</li>
     </ol>
     <button class="icon-btn" id="settings-btn" title="Settings" aria-label="Settings">⚙️</button>
@@ -59,6 +59,10 @@
       <h1>Choose your print</h1>
       <p class="sub">You'll take 8 photos, then pick your favourites.</p>
       <div class="layout-cards" id="layout-cards"></div>
+      <div class="no-frames" id="no-frames" hidden>
+        <p class="script">almost ready</p>
+        <p class="sub">No frames have been added yet. Add frame images to <b>public/frames</b> in the GitHub repo, or upload them in ⚙️ settings.</p>
+      </div>
       <div class="actions">
         <button class="btn ghost" data-go="home">← Home</button>
       </div>
@@ -70,10 +74,8 @@
       <p class="sub">The frame decides how many photos go on your print.</p>
       <div class="frame-picker">
         <div class="frame-options">
-          <h3>Layout</h3>
-          <div class="geo-list" id="geo-list"></div>
-          <h3>Style</h3>
-          <div class="theme-list" id="frame-theme-list"></div>
+          <h3>Frames</h3>
+          <div class="frame-list" id="frame-list"></div>
         </div>
         <div class="preview-pane">
           <canvas id="frame-preview" class="preview-canvas"></canvas>
@@ -138,9 +140,9 @@
           <p class="sub left">Tap to add in order · tap again to remove</p>
           <div class="pick-grid" id="pick-grid"></div>
           <button class="btn ghost small" id="clear-pick">Clear selection</button>
-          <h3>Frame style</h3>
-          <div class="theme-list" id="select-theme-list"></div>
-          <button class="btn ghost small only-4r" id="change-frame">Change 4R frame layout</button>
+          <h3>Frame</h3>
+          <div class="frame-list" id="select-frame-list"></div>
+          <button class="btn ghost small only-4r" id="change-frame">Choose a different 4R frame</button>
         </div>
         <div class="preview-pane">
           <canvas id="select-preview" class="preview-canvas"></canvas>
@@ -207,7 +209,7 @@
   <dialog id="settings">
     <form method="dialog" class="settings-form">
       <h2>Booth settings</h2>
-      <label class="field"><span>Event name (printed on the frame)</span><input id="set-event" maxlength="40" /></label>
+      <label class="field"><span>Event name (used in emails and the top bar)</span><input id="set-event" maxlength="40" /></label>
       <div class="field">
         <label for="set-printer">Printer</label>
         <select id="set-printer"><option value="">System default</option></select>

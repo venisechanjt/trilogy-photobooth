@@ -431,7 +431,24 @@ function readFrames() {
     .sort((a, b) => a.createdAt - b.createdAt);
 }
 
-app.get('/api/frames', (req, res) => res.json({ frames: readFrames() }));
+// Permanent frames: image files committed to the repo in public/frames/ (served at /frames/...).
+const REPO_FRAMES_DIR = path.join(__dirname, 'public', 'frames');
+
+function readRepoFrames() {
+  if (!fs.existsSync(REPO_FRAMES_DIR)) return [];
+  return fs
+    .readdirSync(REPO_FRAMES_DIR)
+    .filter((f) => /\.(png|jpe?g|webp)$/i.test(f))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((f) => ({
+      file: f,
+      // "01-trilogy_red.png" -> "trilogy red" (a number at the start only sets the order)
+      name: f.replace(/\.[^.]+$/, '').replace(/^\d+[\s._-]+/, '').replace(/[_-]+/g, ' ').trim() || f,
+      url: `/frames/${encodeURIComponent(f)}`,
+    }));
+}
+
+app.get('/api/frames', (req, res) => res.json({ frames: readFrames(), repo: readRepoFrames() }));
 
 app.post('/api/frames', requireAdmin, (req, res) => {
   try {

@@ -2,7 +2,7 @@
 
 A self-service photobooth that runs on a laptop with a built-in or USB camera and a connected printer.
 
-**Flow:** choose **3 Cuts / 4 Cuts / 4R** → (4R only: choose the frame first) → take **8 photos** → pick your favourites (3, 4, or however many the 4R frame needs) and a frame style with live preview → choose the **number of prints**, optionally enter an **email** for a digital copy → **Print**.
+**Flow:** choose **3 Cuts / 4 Cuts / 4R** → (4R only: choose the frame first) → take **8 photos** → pick your favourites (3, 4, or however many the 4R frame needs) and one of your frames, with a live preview → choose the **number of prints**, optionally enter an **email** for a digital copy → **Print**.
 
 ## Quick start
 
@@ -27,7 +27,7 @@ Run the browser full screen so guests can't leave the app:
 open -a "Google Chrome" --args --kiosk http://localhost:3000
 ```
 
-Press ⚙️ (top right) to set the event name printed on the frames, the printer, the maximum prints, and whether photos are mirrored.
+Press ⚙️ (top right) to set the event name (used in emails and the top bar), the printer, the maximum prints, and whether photos are mirrored.
 
 **Lock the settings with a PIN:** run `npm run set-pin`, type the PIN (4–8 digits) and restart the booth. ⚙️ then asks for the PIN, and locks again whenever the settings close. After 5 wrong tries it waits a minute. The PIN is stored only in `.env` on the laptop. Run `npm run set-pin` again to change it, or leave it empty to remove it.
 
@@ -107,21 +107,24 @@ Every finished print is also saved to `output/`.
 
 ## Adding your own frames
 
-**Upload them from the booth:** ⚙️ → *Your frames* → **Upload frames**. You can pick several files at once.
+The booth has **no built-in frames**: it uses only your frame artwork. A layout (3 Cuts, 4 Cuts, 4R) appears on the booth once there's at least one frame for it.
 
-* **Shape:** a tall 2×6" strip (for example 600×1800 or 696×2000) with **3 or 4** photo windows, or a portrait 4×6" / 4R (for example 1200×1800) with **1, 2, 3, 4, 6 or 8** windows.
-* **Photo windows:** plain **white boxes** on a coloured frame (like the Trilogy template), or **see-through** areas in a PNG. In a see-through PNG, anything drawn over the windows (stickers, doodles) stays on top of the photos.
-* **What the booth does:** it finds the windows, works out whether the frame is 3 cuts, 4 cuts or 4R, and lists it first among the frame styles for that layout. The first uploaded frame for a layout is preselected. Uploaded frames keep their own text, so the booth doesn't add the event name.
-* **Removing a frame:** tap *Remove* next to it, then tap again to confirm.
-* **Where they're kept:** `custom-frames/` in the project folder. Copy that folder to back them up or to move them to another laptop.
+### Permanent frames (recommended): the `public/frames` folder on GitHub
 
-### Frames made in code
+1. On GitHub, open the repo → `public` → `frames`.
+2. **Add file → Upload files**, drag your frame images in, and click **Commit changes**.
+3. On the booth laptop, run `git pull` and restart the booth.
 
-The built-in styles are in `public/frames.js`:
+Every image in that folder is loaded automatically. The file name becomes the frame name (`trilogy_red-3cut.png` → "trilogy red 3cut"). A number at the start only sets the order (`01-…`, `02-…`). To remove a permanent frame, delete it from that folder on GitHub and `git pull`.
 
-* **`GEOMETRIES`** set where the photo windows go and how many photos a frame holds. 4R frames are listed in `LAYOUTS['4r'].geometries`.
-* **`THEMES`** set the look: background, borders, decorations and caption.
+### Quick additions on one laptop: upload in ⚙️
 
-**3 Cuts and 4 Cuts follow the standard Trilogy strip template** (`STRIP_TEMPLATE` in `public/frames.js`, measured on the 696×2000 template artwork): photo windows 80px from the left and 542px wide, starting 84px from the top, 55px apart, with the last window ending 1608px down. Photos are cropped at the sides to fill the windows, and the camera screen shows a dashed guide of what will be kept.
+⚙️ → *Your frames* → **Upload frames**. These are saved in `custom-frames/` on that laptop only, and can be removed there. Permanent frames are marked *Permanent* in the list.
 
-4R photo windows take the shape of the camera's pictures, so 4R photos are never cropped.
+### What frame images need
+
+* **Shape:** a tall 2×6" strip (for example 600×1800 or 696×2000) with **3 or 4** photo windows, or a portrait 4×6" / 4R (for example 1200×1800) with **1 to 8** windows.
+* **Photo windows:** plain **white boxes** on a coloured frame, or **see-through** areas in a PNG. In a see-through PNG, anything drawn over the windows (stickers, doodles) stays on top of the photos.
+* The booth finds the windows, works out the layout, and crops photos to fill each window. The camera screen shows a dashed guide of what will fit.
+* If an image can't be used (wrong shape, wrong number of windows), ⚙️ → *Your frames* shows a ⚠ note saying why.
+

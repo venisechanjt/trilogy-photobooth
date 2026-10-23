@@ -1,5 +1,5 @@
 (() => {
-  const { GEOMETRIES, LAYOUTS, THEMES, renderFrame, renderPrintSheet } = window.Frames;
+  const { LAYOUTS, FRAMES, getFrame, framesFor, renderFrame, renderPrintSheet } = window.Frames;
   const TOTAL_SHOTS = 8;
   const $ = (sel) => document.querySelector(sel);
 
@@ -14,7 +14,6 @@
   if (!['auto', 'manual'].includes(settings.mode)) settings.mode = DEFAULT_SETTINGS.mode;
   // a 0s timer only makes sense when the guest presses the button for every photo
   if (settings.mode === 'auto' && settings.timer === 0) settings.timer = DEFAULT_SETTINGS.timer;
-  if (settings.photoAspect) Frames.setPhotoAspect(settings.photoAspect);
   document.documentElement.style.setProperty('--photo-aspect', settings.photoAspect || 4 / 3);
   const saveSettings = () => {
     try {
@@ -27,16 +26,14 @@
   // ---------- session state ----------
   const state = {
     layout: null, // 'strip3' | 'strip4' | '4r'
-    geometry: null, // key of GEOMETRIES
-    theme: 'trilogy-red',
+    frame: null, // id of the chosen frame (see Frames.FRAMES)
     shots: Array(TOTAL_SHOTS).fill(null), // canvases
     selection: [], // indexes into shots, in slot order
     copies: 1,
   };
 
-  const need = () => GEOMETRIES[state.geometry].count;
+  const need = () => getFrame(state.frame)?.count || 0;
   const isStrip = () => LAYOUTS[state.layout].strip;
-  const frameOpts = () => ({ caption: settings.eventName });
   const selectedPhotos = () => state.selection.map((i) => state.shots[i]);
 
   // ---------- navigation ----------
@@ -73,8 +70,7 @@
 
   function resetSession() {
     state.layout = null;
-    state.geometry = null;
-    state.theme = DEFAULT_THEME;
+    state.frame = null;
     state.shots = Array(TOTAL_SHOTS).fill(null);
     state.selection = [];
     state.copies = 1;
@@ -89,96 +85,59 @@
   }
 
   // ---------- 1. layout ----------
-  async function buildLayoutCards() {
+  // Only layouts that have at least one frame are offered.
+  function buildLayoutCards() {
     const wrap = $('#layout-cards');
     wrap.innerHTML = '';
-    for (const layout of Object.values(LAYOUTS)) {
+    const layouts = Object.values(LAYOUTS).filter((l) => framesFor(l.id).length);
+    $('#no-frames').hidden = layouts.length > 0;
+    layouts.forEach((layout) => {
       const card = document.createElement('button');
       card.className = 'layout-card';
-      const canvas = document.createElement('canvas');
-      const geoId = layout.id === '4r' ? '4r-quad' : layout.geometries[0];
-      await renderFrame(canvas, geoId, { strip3: 'trilogy-cream', strip4: 'trilogy-red', '4r': 'trilogy-forest' }[layout.id], [], { ...frameOpts(), scale: 0.18 });
       card.innerHTML = `<div class="thumb"></div><h2>${layout.name}</h2><p>${layout.blurb}</p>`;
-      card.querySelector('.thumb').appendChild(canvas);
+      card.querySelector('.thumb').appendChild(renderFrame(document.createElement('canvas'), framesFor(layout.id)[0].id, [], { scale: 0.18 }));
       card.addEventListener('click', () => chooseLayout(layout.id));
       wrap.appendChild(card);
-    }
+    });
   }
 
   function chooseLayout(id) {
     state.layout = id;
-    state.geometry = LAYOUTS[id].geometries[0];
-    // start with the booth's own uploaded frame for this layout, if there is one
-    const custom = THEMES.find((t) => t.custom && t.layout === id);
-    state.theme = custom ? custom.id : DEFAULT_THEME;
-    if (id === '4r') {
-      state.geometry = custom ? geometryFor(custom.count) : '4r-quad';
-      go('frame');
-    } else {
-      go('camera');
-    }
+    state.frame = framesFor(id)[0].id;
+    go(id === '4r' ? 'frame' : 'camera');
   }
 
-  // ---------- theme swatches (shared by frame + select screens) ----------
-  const DEFAULT_THEME = 'trilogy-red';
-  const geometryFor = (count) => LAYOUTS['4r'].geometries.find((g) => GEOMETRIES[g].count === count);
+  // ---------- frame choices (4R frame screen + pick screen) ----------
+  // The pick screen offers frames with the same number of photos; the 4R frame screen offers every
+  // 4R frame, and picking one sets how many photos the guest chooses.
+  const framesToOffer = (anyCount = false) => framesFor(state.layout).filter((f) => anyCount || f.count === need());
 
-  // Uploaded frames only fit the layout (and number of photos) they were made for.
-  // On the 4R frame screen every 4R upload is offered; picking one sets the number of photos.
-  function fits(t, anyCount = false) {
-    if (!t.custom) return true;
-    if (t.layout !== state.layout) return false;
-    return anyCount || t.count === need();
-  }
-  function ensureTheme() {
-    const t = THEMES.find((x) => x.id === state.theme);
-    if (!t || !fits(t)) state.theme = DEFAULT_THEME;
+  function ensureFrame() {
+    if (!getFrame(state.frame)) state.frame = framesFor(state.layout)[0]?.id || null;
   }
 
-  function buildThemeList(container, onPick, anyCount = false) {
+  function buildFrameList(container, onPick, anyCount = false) {
     container.innerHTML = '';
-    THEMES.filter((t) => fits(t, anyCount)).forEach((t) => {
+    framesToOffer(anyCount).forEach((f) => {
       const b = document.createElement('button');
-      b.className = 'theme-chip' + (t.custom ? ' custom' : '');
-      b.dataset.theme = t.id;
-      b.innerHTML = `<span class="swatch" style="background:${t.swatch}"></span>${t.name}`;
+      b.className = 'frame-chip' + (f.id === state.frame ? ' active' : '');
+      b.appendChild(renderFrame(document.createElement('canvas'), f.id, [], { scale: f.layout === '4r' ? 0.05 : 0.07 }));
+      b.insertAdjacentHTML('beforeend', `<span><b></b><small>${f.count} photo${f.count > 1 ? 's' : ''}</small></span>`);
+      b.querySelector('b').textContent = f.name;
       b.addEventListener('click', () => {
-        state.theme = t.id;
-        if (t.custom && t.layout === '4r') {
-          state.geometry = geometryFor(t.count);
-          state.selection = state.selection.slice(0, need());
-        }
+        state.frame = f.id;
+        state.selection = state.selection.slice(0, need());
         onPick();
       });
       container.appendChild(b);
     });
   }
-  const markTheme = (container) =>
-    container.querySelectorAll('.theme-chip').forEach((b) => b.classList.toggle('active', b.dataset.theme === state.theme));
 
   // ---------- 2. frame (4R) ----------
   function renderFrameScreen() {
-    const list = $('#geo-list');
-    list.innerHTML = '';
-    LAYOUTS['4r'].geometries.forEach((id) => {
-      const g = GEOMETRIES[id];
-      const b = document.createElement('button');
-      b.className = 'geo-chip' + (id === state.geometry ? ' active' : '');
-      const c = document.createElement('canvas');
-      renderFrame(c, id, 'trilogy-cream', [], { scale: 0.05, caption: false });
-      b.appendChild(c);
-      b.insertAdjacentHTML('beforeend', `<span>${g.name}<small>${g.count} photo${g.count > 1 ? 's' : ''}</small></span>`);
-      b.addEventListener('click', () => {
-        state.geometry = id;
-        state.selection = state.selection.slice(0, need());
-        ensureTheme();
-        renderFrameScreen();
-      });
-      list.appendChild(b);
-    });
-    buildThemeList($('#frame-theme-list'), renderFrameScreen, true);
-    markTheme($('#frame-theme-list'));
-    renderFrame($('#frame-preview'), state.geometry, state.theme, selectedPhotos(), { ...frameOpts(), scale: 0.5 });
+    ensureFrame();
+    buildFrameList($('#frame-list'), renderFrameScreen, true);
+    renderFrame($('#frame-preview'), state.frame, selectedPhotos(), { scale: 0.5 });
   }
 
   $('#frame-next').addEventListener('click', () => {
@@ -239,16 +198,15 @@
     const aspect = video.videoWidth / video.videoHeight;
     $('#viewfinder').style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
     document.documentElement.style.setProperty('--photo-aspect', aspect);
-    Frames.setPhotoAspect(aspect);
     settings.photoAspect = aspect;
     saveSettings();
     positionGuide();
   });
 
-  // Dashed box showing the part of the picture that fits the strip template's photo windows.
+  // Dashed box showing the part of the picture that fits the chosen frame's photo windows.
   function positionGuide() {
     const guide = $('#guide');
-    const slotAspect = state.geometry && Frames.fixedSlotAspect(state.geometry);
+    const slotAspect = state.frame && Frames.frameSlotAspect(state.frame);
     if (!slotAspect || !video.videoWidth) return (guide.style.display = 'none');
     const camAspect = video.videoWidth / video.videoHeight;
     let w = 100;
@@ -422,12 +380,12 @@
     previewQueued = true;
     requestAnimationFrame(async () => {
       previewQueued = false;
-      await renderFrame($('#select-preview'), state.geometry, state.theme, selectedPhotos(), { ...frameOpts(), scale: 0.5 });
+      renderFrame($('#select-preview'), state.frame, selectedPhotos(), { scale: 0.5 });
     });
   }
 
   function renderSelectScreen() {
-    ensureTheme();
+    ensureFrame();
     $('#need-count').textContent = need();
     const grid = $('#pick-grid');
     grid.innerHTML = '';
@@ -446,8 +404,7 @@
     grid.classList.toggle('full', full);
     $('#picked-count').textContent = `(${state.selection.length}/${need()})`;
     $('#select-next').disabled = !full;
-    buildThemeList($('#select-theme-list'), renderSelectScreen);
-    markTheme($('#select-theme-list'));
+    buildFrameList($('#select-frame-list'), renderSelectScreen);
     updateSelectPreview();
   }
 
@@ -479,7 +436,7 @@
   let finalSheet = null;
 
   async function renderPrintScreen() {
-    finalFrame = await renderFrame(document.createElement('canvas'), state.geometry, state.theme, selectedPhotos(), frameOpts());
+    finalFrame = renderFrame(document.createElement('canvas'), state.frame, selectedPhotos());
     finalSheet = renderPrintSheet(finalFrame, isStrip());
     const prev = $('#print-preview');
     prev.width = finalSheet.width / 2;
@@ -792,8 +749,9 @@
     try {
       // the test uses the template as it is on screen, with a sample photostrip attached
       if (templateChanged()) await saveEmailTemplate();
-      const sample = await renderFrame(document.createElement('canvas'), 'strip3', sampleTheme(), [], frameOpts());
-      await postJSON('/api/email/test', { to: input.value.trim(), event: settings.eventName, image: sample.toDataURL('image/jpeg', 0.9) });
+      const sampleFrame = framesFor('strip3')[0] || FRAMES[0];
+      const sample = sampleFrame && renderFrame(document.createElement('canvas'), sampleFrame.id, []);
+      await postJSON('/api/email/test', { to: input.value.trim(), event: settings.eventName, image: sample ? sample.toDataURL('image/jpeg', 0.9) : undefined });
       status.textContent = `✓ Sent to ${input.value.trim()}. Check the inbox (and spam).`;
     } catch (err) {
       status.textContent = `✗ ${err.message}`;
@@ -823,7 +781,6 @@
   let savedTemplate = null;
   const templateFromForm = () => ({ subject: $('#tpl-subject').value, body: $('#tpl-body').value, attachPhotos: $('#tpl-photos').checked });
   const templateChanged = () => savedTemplate && JSON.stringify(templateFromForm()) !== JSON.stringify(savedTemplate);
-  const sampleTheme = () => (THEMES.find((t) => t.custom && t.layout === 'strip3') || { id: DEFAULT_THEME }).id;
 
   function fillTemplateForm(t) {
     $('#tpl-subject').value = t.subject;
@@ -874,50 +831,82 @@
       r.readAsDataURL(file);
     });
 
-  async function loadCustomFrames() {
+  // Loads the permanent frames (public/frames/ in the repo) and the ones uploaded in settings.
+  let frameProblems = [];
+  async function loadFrames() {
     if (!server) return;
     try {
-      const { frames } = await (await fetch('/api/frames')).json();
-      THEMES.filter((t) => t.custom).forEach((t) => Frames.removeCustomFrame(t.customId));
-      const images = await Promise.all(frames.map((f) => loadImg(f.url).catch(() => null)));
-      // added newest-first at the front of the list, so add in reverse to keep upload order
-      for (let i = frames.length - 1; i >= 0; i--) if (images[i]) Frames.addCustomFrame(frames[i], images[i]);
+      const { frames = [], repo = [] } = await (await fetch('/api/frames')).json();
+      const [repoImages, uploadImages] = await Promise.all([
+        Promise.all(repo.map((r) => loadImg(r.url).catch(() => null))),
+        Promise.all(frames.map((f) => loadImg(f.url).catch(() => null))),
+      ]);
+      FRAMES.splice(0);
+      frameProblems = [];
+      repo.forEach((r, i) => {
+        if (!repoImages[i]) return frameProblems.push(`${r.file}: couldn’t be opened`);
+        try {
+          const found = Frames.detectFrameWindows(repoImages[i]);
+          Frames.addFrame({ id: `repo:${r.file}`, name: r.name, url: r.url, source: 'repo', image: repoImages[i], layout: found.layout, slots: found.slots, windowsTransparent: found.windowsTransparent });
+        } catch (err) {
+          frameProblems.push(`${r.file}: ${err.message}`);
+        }
+      });
+      frames.forEach((f, i) => {
+        if (uploadImages[i]) {
+          Frames.addFrame({ id: `upload:${f.id}`, uploadId: f.id, name: f.name, url: f.url, source: 'upload', image: uploadImages[i], layout: f.layout, slots: f.slots, windowsTransparent: f.windowsTransparent });
+        }
+      });
     } catch {}
+  }
+
+  async function refreshFrames() {
+    await loadFrames();
+    renderFrameAdmin();
+    buildLayoutCards();
   }
 
   function renderFrameAdmin() {
     const list = $('#frame-admin-list');
-    const frames = THEMES.filter((t) => t.custom);
-    list.innerHTML = frames.length ? '' : '<span class="hint">No frames uploaded yet.</span>';
-    frames.forEach((t) => {
+    list.innerHTML = FRAMES.length ? '' : '<span class="hint">No frames yet.</span>';
+    FRAMES.forEach((f) => {
       const row = document.createElement('div');
       row.className = 'frame-row';
-      row.innerHTML = `<img src="${t.url}" alt=""><span><b></b><small>${LAYOUT_LABEL[t.layout]} · ${t.count} photo${t.count > 1 ? 's' : ''}</small></span>`;
-      row.querySelector('b').textContent = t.name;
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'btn ghost small danger';
-      del.textContent = 'Remove';
-      let armed = null;
-      del.addEventListener('click', async () => {
-        if (!armed) {
-          del.classList.add('armed');
-          del.textContent = 'Tap again';
-          armed = setTimeout(() => {
-            armed = null;
-            del.classList.remove('armed');
-            del.textContent = 'Remove';
-          }, 4000);
-          return;
-        }
-        clearTimeout(armed);
-        del.disabled = true;
-        await fetch(`/api/frames/${t.customId}`, { method: 'DELETE', headers: adminHeaders() }).catch(() => {});
-        Frames.removeCustomFrame(t.customId);
-        renderFrameAdmin();
-      });
-      row.appendChild(del);
+      row.innerHTML = `<img src="${f.url}" alt=""><span><b></b><small>${LAYOUT_LABEL[f.layout]} · ${f.count} photo${f.count > 1 ? 's' : ''}</small></span>`;
+      row.querySelector('b').textContent = f.name;
+      if (f.source === 'repo') {
+        row.insertAdjacentHTML('beforeend', '<span class="frame-tag" title="Saved in the GitHub repo (public/frames)">Permanent</span>');
+      } else {
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'btn ghost small danger';
+        del.textContent = 'Remove';
+        let armed = null;
+        del.addEventListener('click', async () => {
+          if (!armed) {
+            del.classList.add('armed');
+            del.textContent = 'Tap again';
+            armed = setTimeout(() => {
+              armed = null;
+              del.classList.remove('armed');
+              del.textContent = 'Remove';
+            }, 4000);
+            return;
+          }
+          clearTimeout(armed);
+          del.disabled = true;
+          await fetch(`/api/frames/${f.uploadId}`, { method: 'DELETE', headers: adminHeaders() }).catch(() => {});
+          refreshFrames();
+        });
+        row.appendChild(del);
+      }
       list.appendChild(row);
+    });
+    frameProblems.forEach((msg) => {
+      const note = document.createElement('small');
+      note.className = 'frame-problem';
+      note.textContent = `⚠ ${msg}`;
+      list.appendChild(note);
     });
   }
 
@@ -955,8 +944,7 @@
         lines.push(`✗ ${file.name}: ${err.message}`);
       }
     }
-    await loadCustomFrames();
-    renderFrameAdmin();
+    await refreshFrames();
     status.textContent = lines.join('\n');
   });
 
@@ -1084,7 +1072,7 @@
     } catch {}
     await document.fonts.ready.catch(() => {});
     await Promise.all(['800 40px Archivo', '500 20px "Roboto Condensed"', 'italic 700 40px "Cormorant Garamond"', 'italic 600 40px "Cormorant Garamond"'].map((f) => document.fonts.load(f))).catch(() => {});
-    await loadCustomFrames();
+    await loadFrames();
     buildLayoutCards();
     go('home');
   }
