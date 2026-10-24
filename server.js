@@ -272,7 +272,7 @@ app.post('/api/email/test', requireAdmin, async (req, res) => {
   }
 });
 
-// Keeps the final photostrip of every session in output/photostrips/ (individual photos are never saved).
+// Keeps the final photostrip of every session in output/photostrips/ as a 4R sheet (individual photos are never saved).
 app.post('/api/save', (req, res) => {
   try {
     const { buffer, ext } = dataUrlToBuffer(req.body.image);

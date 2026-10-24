@@ -517,10 +517,11 @@
           .catch((e) => ({ type: 'print', ok: false, e }))
       );
     }
-    // keep each finished photostrip once (a retry after a failed print doesn't save it again)
+    // keep each finished photostrip once, as the 4R sheet (strips doubled side by side, ready for 4x6 paper);
+    // a retry after a failed print doesn't save it again
     if (state.savedStrip !== finalFrame) {
       state.savedStrip = finalFrame;
-      postJSON('/api/save', { image: frameData }).catch(() => (state.savedStrip = null));
+      postJSON('/api/save', { image: finalSheet.toDataURL('image/jpeg', 0.95) }).catch(() => (state.savedStrip = null));
     }
     if ($('#wall-consent').checked && state.wallStrip !== finalFrame) {
       state.wallStrip = finalFrame;

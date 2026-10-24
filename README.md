@@ -92,7 +92,7 @@ Avoid choosing *Microsoft Print to PDF* or *OneNote*: they open a save window in
 
 | Folder | What's in it |
 |---|---|
-| `output/photostrips/` | The final photostrip of **every** session (`photostrip-<date>-<time>.jpg`) |
+| `output/photostrips/` | The final photostrip of **every** session as a ready-to-print 4×6" (4R) image: strips appear twice side by side (`photostrip-<date>-<time>.jpg`) |
 | `output/wall/` | Photostrips of guests who kept *Pin my photostrip on the booth wall* ticked |
 | `output/wall-archive/` | Wall photos moved there by *Clear booth wall* |
 | `output/prints/` | The 4×6 PDFs sent to the printer, and test pages |
