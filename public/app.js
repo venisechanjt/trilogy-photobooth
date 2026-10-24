@@ -4,7 +4,7 @@
   const $ = (sel) => document.querySelector(sel);
 
   // ---------- settings (stored on this device for the operator) ----------
-  const DEFAULT_SETTINGS = { eventName: 'trilogy', printer: '', timer: 3, mode: 'auto', maxCopies: 10, mirror: true, cameraId: '' };
+  const DEFAULT_SETTINGS = { eventName: 'trilogy', printer: '', timer: 3, mode: 'auto', maxCopies: 10, mirror: true, cameraId: '', printDialog: false };
   const TIMERS = [0, 3, 5];
   let settings = { ...DEFAULT_SETTINGS };
   try {
@@ -445,7 +445,7 @@
     $('#sheet-note').textContent = isStrip() ? 'Each print is a 4R sheet with 2 strips — cut down the middle.' : '4R (4×6") print';
     $('#print-status').textContent = '';
     $('#print-status').className = 'status';
-    $('#test-mode-note').hidden = server?.printMode !== 'dry';
+    $('#test-mode-note').hidden = server?.printMode !== 'dry' || settings.printDialog;
     updateQty();
   }
 
@@ -507,7 +507,10 @@
 
     const frameData = finalFrame.toDataURL('image/jpeg', 0.95);
     const jobs = [];
-    if (print) {
+    if (print && settings.printDialog) {
+      // operator chose to see the print settings window (printer, paper size…) for every print
+      jobs.push(browserPrint().then(() => ({ type: 'print', ok: true, r: { dialog: true } })));
+    } else if (print) {
       jobs.push(
         postJSON('/api/print', { image: finalSheet.toDataURL('image/jpeg', 0.95), copies: state.copies, printer: settings.printer })
           .then((r) => ({ type: 'print', ok: true, r }))
@@ -568,15 +571,15 @@
     $('#print-status').after(b);
   }
 
-  function browserPrint() {
+  // Opens the print window (one 4x6 page per copy); resolves when the window is closed.
+  async function browserPrint() {
     const area = $('#print-area');
     const url = finalSheet.toDataURL('image/jpeg', 0.95);
     area.innerHTML = Array.from({ length: state.copies }, () => `<img src="${url}" alt="">`).join('');
     const imgs = [...area.querySelectorAll('img')];
-    Promise.all(imgs.map((i) => (i.complete ? null : new Promise((r) => (i.onload = r))))).then(() => {
-      window.print();
-      area.innerHTML = '';
-    });
+    await Promise.all(imgs.map((i) => (i.complete ? null : new Promise((r) => (i.onload = r)))));
+    window.print();
+    area.innerHTML = '';
   }
 
   $('#print-btn').addEventListener('click', () => {
@@ -708,6 +711,7 @@
     $('#set-event').value = settings.eventName;
     $('#set-max').value = settings.maxCopies;
     $('#set-mirror').checked = settings.mirror;
+    $('#set-print-dialog').checked = settings.printDialog;
     const sel = $('#set-printer');
     sel.innerHTML = '<option value="">System default</option>';
     if (server) {
@@ -1051,6 +1055,7 @@
     settings.printer = $('#set-printer').value;
     settings.maxCopies = Math.max(1, Math.min(50, parseInt($('#set-max').value, 10) || 10));
     settings.mirror = $('#set-mirror').checked;
+    settings.printDialog = $('#set-print-dialog').checked;
     saveSettings();
     applyBranding();
     buildLayoutCards();

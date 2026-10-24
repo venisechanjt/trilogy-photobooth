@@ -78,6 +78,8 @@ The server turns every print into a **4×6" (4R) PDF** and sends it straight to 
 
 Avoid choosing *Microsoft Print to PDF* or *OneNote*: they open a save window instead of printing.
 
+**Prefer to choose settings for each print?** ⚙️ → *Printer* → tick **Show the print settings window when printing**. Tapping Print then opens the print window, where you can pick the printer and paper size (choose 4×6 / 10×15 cm, and keep copies at 1: the booth already adds one page per print). Untick it to go back to printing straight away.
+
 ## Where photos are kept
 
 | Folder | What's in it |
