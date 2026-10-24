@@ -14,7 +14,7 @@ npm start                 # opens on http://localhost:3000
 
 Open **http://localhost:3000** in Chrome or Edge. Browsers only allow the camera on `localhost` or HTTPS, so open the page on the laptop itself.
 
-To try it without a printer, run `npm run dev`. PDFs are saved to `output/` and nothing is sent to a printer.
+To try it without a printer, run `npm run dev`. Prints are saved as JPGs in `output/prints/` and nothing is sent to a printer.
 
 ### On a Mac
 
