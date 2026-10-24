@@ -66,6 +66,14 @@ The server turns every print into a **4×6" (4R) PDF** and sends it straight to 
 * 3 Cuts and 4 Cuts are 2×6" strips, so each 4R sheet holds **2 strips** side by side, to be cut apart.
 * If the printer doesn't respond within a minute (switched off, out of paper, stuck), the booth shows a message instead of freezing, and offers the browser print dialog as a fallback.
 
+### Printing not working? Run the print check
+
+```bash
+npm run print-check
+```
+
+It checks the print mode, lists the printers with their status (offline, paused…), sends a 4×6 test page to the printer you pick, and looks at the print queue 10 seconds later. It ends with a list of what to fix. Copy the whole output if you need help.
+
 ### Set up the printer (Windows)
 
 1. Connect the printer and install its driver. Print a Windows test page from *Settings → Bluetooth & devices → Printers & scanners* to confirm it works.
