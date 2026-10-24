@@ -184,7 +184,7 @@ h3 {
 .btn.round:hover:not(:disabled) { border-color: var(--olive); }
 
 /* ---------- 1. layout cards ---------- */
-.layout-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; max-width: 980px; margin: 0 auto; }
+.layout-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 300px)); justify-content: center; gap: 24px; max-width: 980px; margin: 0 auto; }
 .layout-card {
   background: var(--surface);
   border: 2px solid var(--line);
@@ -914,3 +914,57 @@ button.brand:focus-visible { outline: 3px solid var(--caramel); outline-offset: 
   padding: 4px 10px;
 }
 .frame-problem { color: var(--err); font-weight: 400; }
+
+/* ---------- next/back buttons always visible at the bottom ---------- */
+.screen > .actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 14px 0 12px;
+  margin-top: 10px;
+  pointer-events: none; /* only the buttons themselves take taps */
+}
+.screen > .actions > * { pointer-events: auto; }
+
+/* ---------- shorter screens (e.g. 13" MacBook Air): compact layout so each screen fits ---------- */
+@media (max-height: 1000px) and (min-width: 901px) {
+  .topbar { padding: 8px 24px; }
+  .brand-logo { height: 40px; }
+  main { padding: 4px 24px 0; }
+  h1 { font-size: clamp(1.9rem, 3.4vw, 2.6rem); margin: 8px 0 2px; }
+  .sub { margin-bottom: 14px; font-size: 1.05rem; }
+  h2 { font-size: 1.6rem; }
+  h3 { margin: 14px 0 8px; }
+
+  .layout-card { padding: 16px 16px 14px; }
+  .layout-card .thumb { height: max(170px, calc(100vh - 400px)); margin-bottom: 10px; }
+  .layout-card h2 { font-size: 1.6rem; }
+
+  .viewfinder { max-height: calc(100vh - 190px); }
+  .camera-side { padding: 14px; gap: 10px; }
+  .camera-side .field { gap: 4px; }
+  .segmented button { padding: 7px 10px; }
+  .btn.big { padding: 13px 28px; font-size: 1.15rem; }
+
+  .pick-grid { gap: 8px; margin-bottom: 8px; }
+  .sub.left { margin-bottom: 8px; }
+  .frame-list { grid-template-columns: repeat(auto-fill, 112px); }
+  .frame-chip { width: 112px; padding: 8px 6px; gap: 6px; }
+  .frame-chip canvas { height: 92px; }
+  .preview-pane { padding: 12px; }
+  .preview-canvas { max-height: calc(100vh - 230px); min-height: 0; }
+
+  .print-options { padding: 18px 22px; gap: 12px; }
+  .print-options h2 { font-size: 1.9rem; margin: 0; }
+  .btn.round { width: 46px; height: 46px; font-size: 1.5rem; }
+  .stepper output { font-size: 2.1rem; }
+  .field input, .field select { padding: 9px 12px; font-size: 1rem; }
+  .privacy { padding: 8px 12px; font-size: 0.8rem; }
+  .test-mode { margin-top: -4px; padding: 6px 10px; font-size: 0.82rem; }
+  #sheet-note { margin: 6px 0 0; }
+}
+
+/* very short screens: one row of frame cards, swipe sideways for more */
+@media (max-height: 860px) and (min-width: 901px) {
+  .frame-list { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 112px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+}
