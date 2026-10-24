@@ -501,6 +501,9 @@
       $('#email').focus();
       return setStatus('That email address doesn’t look right.', 'error');
     }
+    // also download the ready-to-print 4R sheet (to the laptop's Downloads folder); done straight away,
+    // while the tap still counts as the user's own action, so the browser doesn't block it
+    if (print) downloadSheet();
     const buttons = document.querySelectorAll('#screen-print button');
     buttons.forEach((b) => (b.disabled = true));
     setStatus(print ? `Sending ${state.copies} print${state.copies > 1 ? 's' : ''} to the printer…` : 'Sending email…', 'busy');
@@ -570,6 +573,17 @@
     b.textContent = 'Try the browser print dialog instead';
     b.addEventListener('click', browserPrint);
     $('#print-status').after(b);
+  }
+
+  function downloadSheet() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    const name = (settings.eventName || 'photobooth').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'photobooth';
+    const a = document.createElement('a');
+    a.href = finalSheet.toDataURL('image/jpeg', 0.95);
+    a.download = `${name}-4R-${stamp}.jpg`;
+    a.click();
   }
 
   // Opens the print window (one 4x6 page per copy); resolves when the window is closed.

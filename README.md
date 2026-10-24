@@ -62,6 +62,7 @@ The server saves every print as a **4×6" (4R) JPG** (1200×1800, 300 dpi) and s
 | Windows | `pdf-to-printer` (bundled SumatraPDF), silent, with copies |
 | macOS / Linux | CUPS `lp -n <copies> -o media=w288h432` |
 
+* **Print also downloads the 4R sheet** (`<event>-4R-<date>-<time>.jpg`) to the laptop's **Downloads** folder.
 * **Only `npm start` (or `start-booth.bat`) prints.** `npm run dev` is test mode: it saves the JPGs to `output/prints/` without printing, and shows a red "Test mode" note on the print screen.
 * 3 Cuts and 4 Cuts are 2×6" strips, so each 4R sheet holds **2 strips** side by side, to be cut apart.
 * If the printer doesn't respond within a minute (switched off, out of paper, stuck), the booth shows a message instead of freezing, and offers the browser print dialog as a fallback.
