@@ -1,4 +1,4 @@
-// Printing: builds the 4x6in PDFs and sends them to the computer's printer. Used by the booth (server.js)
+// Printing: sends the 4x6in sheets (JPG) and the test page (PDF) to the computer's printer. Used by the booth (server.js)
 // and by "npm run print-check".
 require('dotenv').config();
 
@@ -10,24 +10,6 @@ const PDFDocument = require('pdfkit');
 const execFileP = promisify(execFile);
 // CUPS media name used on macOS / Linux. 4x6in = 288x432pt
 const PRINT_MEDIA = process.env.PRINT_MEDIA || 'w288h432';
-
-// Builds a 4x6in PDF with the image filling the page (rotated if it is landscape).
-function buildPdf(imageBuffer, filePath) {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: [288, 432], margin: 0, autoFirstPage: false });
-    const out = fs.createWriteStream(filePath);
-    doc.pipe(out);
-    const img = doc.openImage(imageBuffer);
-    const landscape = img.width > img.height;
-    doc.addPage({ size: [288, 432], margin: 0, layout: landscape ? 'landscape' : 'portrait' });
-    const pageW = landscape ? 432 : 288;
-    const pageH = landscape ? 288 : 432;
-    doc.image(img, 0, 0, { width: pageW, height: pageH });
-    doc.end();
-    out.on('finish', resolve);
-    out.on('error', reject);
-  });
-}
 
 async function listPrinters() {
   if (process.platform === 'win32') {
@@ -52,18 +34,19 @@ function withTimeout(promise, ms, message) {
   );
 }
 
-async function sendToPrinter(pdfPath, copies, printer) {
+// Prints a file (JPG or PDF): Windows via SumatraPDF (pdf-to-printer), Mac/Linux via CUPS lp.
+async function sendToPrinter(filePath, copies, printer) {
   const timeoutMsg = 'The printer didn’t respond within a minute. Check that it’s on, has paper, and is the right printer in ⚙️ settings.';
-  console.log(`Printing ${copies} cop${copies === 1 ? 'y' : 'ies'} on ${printer || 'the default printer'}: ${pdfPath}`);
+  console.log(`Printing ${copies} cop${copies === 1 ? 'y' : 'ies'} on ${printer || 'the default printer'}: ${filePath}`);
   if (process.platform === 'win32') {
     const { print } = require('pdf-to-printer');
-    await withTimeout(print(pdfPath, { printer: printer || undefined, copies, scale: 'fit' }), 60000, timeoutMsg);
+    await withTimeout(print(filePath, { printer: printer || undefined, copies, scale: 'fit' }), 60000, timeoutMsg);
     return;
   }
   const args = ['-n', String(copies), '-o', 'fit-to-page'];
   if (PRINT_MEDIA) args.push('-o', `media=${PRINT_MEDIA}`);
   if (printer) args.push('-d', printer);
-  args.push(pdfPath);
+  args.push(filePath);
   try {
     await withTimeout(execFileP('lp', args), 60000, timeoutMsg);
   } catch (err) {
@@ -115,4 +98,4 @@ function buildTestPagePdf(filePath) {
   });
 }
 
-module.exports = { PRINT_MEDIA, buildPdf, listPrinters, sendToPrinter, buildTestPagePdf };
+module.exports = { PRINT_MEDIA, listPrinters, sendToPrinter, buildTestPagePdf };

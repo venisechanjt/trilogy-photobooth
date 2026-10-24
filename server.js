@@ -6,7 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-const { PRINT_MEDIA, buildPdf, listPrinters, sendToPrinter, buildTestPagePdf } = require('./printing');
+const { PRINT_MEDIA, listPrinters, sendToPrinter, buildTestPagePdf } = require('./printing');
 
 const PORT = Number(process.env.PORT) || 3000;
 // "system" sends jobs to the OS printer, "dry" only saves the PDF (for testing without a printer)
@@ -131,19 +131,19 @@ app.post('/api/print', async (req, res) => {
   try {
     const { image, copies, printer } = req.body;
     const n = Math.max(1, Math.min(MAX_COPIES, parseInt(copies, 10) || 1));
-    const { buffer } = dataUrlToBuffer(image);
-    const id = sessionId();
+    const { buffer, ext } = dataUrlToBuffer(image);
+    // the 4x6in sheet is saved and printed as the image itself (JPG), no PDF in between
     fs.mkdirSync(PRINTS_DIR, { recursive: true });
-    const pdfPath = path.join(PRINTS_DIR, `print-${id}.pdf`);
-    await buildPdf(buffer, pdfPath);
+    const imagePath = path.join(PRINTS_DIR, `print-${sessionId()}.${ext}`);
+    fs.writeFileSync(imagePath, buffer);
 
     if (PRINT_MODE === 'dry') {
-      console.log(`[dry-run] would print ${n} copies of ${pdfPath}`);
-      return res.json({ ok: true, dryRun: true, copies: n, file: path.basename(pdfPath) });
+      console.log(`[dry-run] would print ${n} copies of ${imagePath}`);
+      return res.json({ ok: true, dryRun: true, copies: n, file: path.basename(imagePath) });
     }
 
-    await sendToPrinter(pdfPath, n, printer || DEFAULT_PRINTER);
-    res.json({ ok: true, copies: n, file: path.basename(pdfPath) });
+    await sendToPrinter(imagePath, n, printer || DEFAULT_PRINTER);
+    res.json({ ok: true, copies: n, file: path.basename(imagePath) });
   } catch (err) {
     console.error('Print failed:', err);
     res.status(500).json({ error: String(err.message || err) });

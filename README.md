@@ -55,14 +55,14 @@ On the camera screen, guests choose:
 
 ## Printing
 
-The server turns every print into a **4×6" (4R) PDF** and sends it straight to the laptop's printer with the chosen number of copies. No print dialog appears.
+The server saves every print as a **4×6" (4R) JPG** (1200×1800, 300 dpi) and sends it straight to the laptop's printer with the chosen number of copies. No print dialog appears.
 
 | Laptop | How it prints |
 |---|---|
 | Windows | `pdf-to-printer` (bundled SumatraPDF), silent, with copies |
 | macOS / Linux | CUPS `lp -n <copies> -o media=w288h432` |
 
-* **Only `npm start` (or `start-booth.bat`) prints.** `npm run dev` is test mode: it saves PDFs to `output/` and shows a red "Test mode" note on the print screen.
+* **Only `npm start` (or `start-booth.bat`) prints.** `npm run dev` is test mode: it saves the JPGs to `output/prints/` without printing, and shows a red "Test mode" note on the print screen.
 * 3 Cuts and 4 Cuts are 2×6" strips, so each 4R sheet holds **2 strips** side by side, to be cut apart.
 * If the printer doesn't respond within a minute (switched off, out of paper, stuck), the booth shows a message instead of freezing, and offers the browser print dialog as a fallback.
 
@@ -95,7 +95,7 @@ Avoid choosing *Microsoft Print to PDF* or *OneNote*: they open a save window in
 | `output/photostrips/` | The final photostrip of **every** session as a ready-to-print 4×6" (4R) image: strips appear twice side by side (`photostrip-<date>-<time>.jpg`) |
 | `output/wall/` | Photostrips of guests who kept *Pin my photostrip on the booth wall* ticked |
 | `output/wall-archive/` | Wall photos moved there by *Clear booth wall* |
-| `output/prints/` | The 4×6 PDFs sent to the printer, and test pages |
+| `output/prints/` | The 4×6 JPGs sent to the printer (`print-<date>-<time>.jpg`), and test pages (PDF) |
 
 **Individual photos are never saved.** They only exist in the browser during the session, and are cleared when the guest finishes, leaves via the logo, or after 3 minutes without a touch. The print screen and thank-you screen tell guests this.
 
