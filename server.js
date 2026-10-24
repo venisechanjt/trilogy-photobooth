@@ -111,7 +111,21 @@ async function sendToPrinter(pdfPath, copies, printer) {
   if (PRINT_MEDIA) args.push('-o', `media=${PRINT_MEDIA}`);
   if (printer) args.push('-d', printer);
   args.push(pdfPath);
-  await withTimeout(execFileP('lp', args), 60000, timeoutMsg);
+  try {
+    await withTimeout(execFileP('lp', args), 60000, timeoutMsg);
+  } catch (err) {
+    const msg = `${err.stderr || ''} ${err.message || ''}`;
+    if (/no default destination/i.test(msg)) {
+      throw new Error('No printer is set up. Add the printer in System Settings → Printers & Scanners, then choose it in ⚙️ → Printer.');
+    }
+    if (/does not exist|unknown destination/i.test(msg)) {
+      throw new Error(`The printer “${printer}” isn’t available. Check it’s connected, or choose another printer in ⚙️.`);
+    }
+    if (/media|page ?size/i.test(msg)) {
+      throw new Error('The printer doesn’t accept the 4×6 paper setting. Run "npm run printer-sizes" in Terminal, then restart the booth.');
+    }
+    throw err;
+  }
 }
 
 // A 4x6in calibration page: a border 1/8in from the edge, size labels, colour patches and the strip cut line.
