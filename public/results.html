@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Favourite frame results · trilogy</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="vote.css" />
+</head>
+<body class="vote-page results-page">
+  <main>
+    <p class="brand vote-brand">trilogy</p>
+    <h3>favourite frame · live results</h3>
+    <p class="results-total" id="total" aria-live="polite">Votes so far: 0</p>
+    <ol class="results-list" id="results"></ol>
+    <p class="vote-status" id="status">Loading…</p>
+  </main>
+  <!-- vote.js only provides the frame list (and API_URL) here -->
+  <script src="vote.js"></script>
+  <script src="results.js"></script>
+</body>
+</html>

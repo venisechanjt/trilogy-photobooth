@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Vote for your favourite frame · trilogy</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="vote.css" />
+</head>
+<body class="vote-page">
+  <main id="vote-app">
+    <p class="brand vote-brand">trilogy</p>
+
+    <!-- 1. pick a frame -->
+    <section id="screen-pick" aria-labelledby="pick-title">
+      <h3 id="pick-title" tabindex="-1">tell us your favourite frame!</h3>
+      <p class="vote-intro">Tap a frame, then press <b>Submit vote</b>.</p>
+      <p class="vote-anon">Your vote is anonymous — we only count which frame was picked.</p>
+      <div class="vote-grid" id="frame-grid"></div>
+      <div class="vote-bar">
+        <p class="vote-selected" id="selected-note" aria-live="polite">Tap a frame to choose it.</p>
+        <button type="button" class="btn primary big" id="submit-btn" disabled>Submit vote</button>
+      </div>
+    </section>
+
+    <!-- 2. confirm (prevents mis-taps) -->
+    <section id="screen-confirm" class="vote-panel" aria-labelledby="confirm-title" hidden>
+      <h1 id="confirm-title" tabindex="-1">Vote for this frame?</h1>
+      <img id="confirm-img" class="vote-confirm-img" width="200" height="600" alt="" />
+      <p class="vote-confirm-name" id="confirm-name"></p>
+      <div class="vote-actions">
+        <button type="button" class="btn primary big" id="yes-btn">Yes, submit my vote</button>
+        <button type="button" class="btn ghost big" id="back-btn">Go back</button>
+      </div>
+    </section>
+
+    <!-- 3. thanks -->
+    <section id="screen-thanks" class="vote-panel" aria-labelledby="thanks-title" hidden>
+      <h1 id="thanks-title" tabindex="-1">Thank you!</h1>
+      <p class="sub">Your vote is in.</p>
+      <p class="vote-kiosk-note" id="kiosk-note" hidden></p>
+    </section>
+
+    <!-- already voted on this phone -->
+    <section id="screen-done" class="vote-panel" aria-labelledby="done-title" hidden>
+      <h1 id="done-title" tabindex="-1">You've already voted, thank you!</h1>
+      <p class="sub">One vote per phone.</p>
+    </section>
+
+    <p class="vote-status" id="status"></p>
+  </main>
+
+  <div class="sr-only" id="live" role="status" aria-live="polite"></div>
+  <div class="toast" id="toast" role="alert"></div>
+
+  <script src="vote.js"></script>
+</body>
+</html>
