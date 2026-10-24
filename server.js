@@ -9,6 +9,7 @@ const nodemailer = require('nodemailer');
 const { PRINT_MEDIA, listPrinters, sendToPrinter, buildTestPagePdf } = require('./printing');
 
 const PORT = Number(process.env.PORT) || 3000;
+const isWindows = process.platform === 'win32';
 // "system" sends jobs to the OS printer, "dry" only saves the PDF (for testing without a printer)
 const PRINT_MODE = process.argv.includes('--dry') ? 'dry' : (process.env.PRINT_MODE || 'system').toLowerCase();
 const DEFAULT_PRINTER = process.env.PRINTER_NAME || '';
@@ -414,12 +415,24 @@ app.post('/api/wall/clear', requireAdmin, (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`📸 Photobooth running at http://localhost:${PORT}`);
-  console.log(`   Print mode: ${PRINT_MODE}${PRINT_MODE === 'dry' ? ' (PDFs saved, nothing printed)' : ''}`);
+  console.log(`   Print mode: ${PRINT_MODE}${PRINT_MODE === 'dry' ? ' (test mode: prints saved, nothing printed)' : ''}`);
   console.log(`   Email: ${mailer() ? 'configured' : 'not configured (set SMTP_* in .env)'}`);
   console.log(`   Output folder: ${OUTPUT_DIR}`);
   console.log(`   Photostrips saved in: ${STRIPS_DIR}`);
   console.log(`   Settings PIN: ${ADMIN_PIN ? 'on' : 'off (run "npm run set-pin" to add one)'}`);
   if (os.platform() !== 'win32') console.log(`   CUPS media: ${PRINT_MEDIA}`);
 });
+
+// Only one copy of the booth can run at a time: explain instead of crashing.
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n⚠️  The photobooth is already running (port ${PORT} is in use).`);
+    console.error(`   Open http://localhost:${PORT} in the browser, or close the other booth window first and try again.`);
+    console.error(isWindows ? '   To stop every running copy: Stop-Process -Name node\n' : '   To stop every running copy: pkill -f "node server.js"\n');
+    process.exit(1);
+  }
+  throw err;
+});
+

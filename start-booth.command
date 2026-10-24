@@ -8,6 +8,22 @@ if [ ! -d node_modules ]; then
   npm install || { echo "Install failed. Is Node.js installed? (https://nodejs.org)"; read -r -p "Press Enter to close."; exit 1; }
 fi
 
+# Open full screen in Chrome (its own profile remembers the camera permission), or the default browser
+open_booth() {
+  if [ -d "/Applications/Google Chrome.app" ]; then
+    open -na "Google Chrome" --args --kiosk --no-first-run --user-data-dir="$HOME/Library/Application Support/trilogy-photobooth-browser" http://localhost:3000
+  else
+    open http://localhost:3000
+  fi
+}
+
+# Already running (e.g. started earlier)? Then just open it.
+if curl -s -o /dev/null http://localhost:3000/api/status; then
+  echo "The photobooth is already running. Opening it."
+  open_booth
+  exit 0
+fi
+
 # Start the booth (print mode). This window shows its messages: keep it open while the booth runs.
 npm start &
 SERVER=$!
@@ -19,12 +35,7 @@ for _ in $(seq 1 40); do
   sleep 1
 done
 
-# Open full screen in Chrome (its own profile remembers the camera permission), or the default browser
-if [ -d "/Applications/Google Chrome.app" ]; then
-  open -na "Google Chrome" --args --kiosk --no-first-run --user-data-dir="$HOME/Library/Application Support/trilogy-photobooth-browser" http://localhost:3000
-else
-  open http://localhost:3000
-fi
+open_booth
 
 echo ""
 echo "The photobooth is running. To finish: press Cmd + Q in the booth window, then Ctrl + C here."

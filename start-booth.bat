@@ -10,6 +10,9 @@ if not exist node_modules (
   call npm install
 )
 
+rem Already running (e.g. started earlier)? Then just open it.
+curl -s -o nul http://localhost:3000/api/status && goto ready
+
 rem Start the booth (print mode) in its own window. Keep that window open while the booth runs.
 start "trilogy photobooth server" /min cmd /k npm start
 
